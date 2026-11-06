@@ -292,7 +292,7 @@ export function aiCard(detail) {
         class: 'btn', type: 'button', text: '📄 生成维修报告',
         onclick: () => openReportModal(detail),
     }));
-    body.append(h('div', { class: 'ai-actions' }, ...actions),);
+    body.append(h('div', { class: 'ai-actions' }, ...actions),
         h('p', { class: 'hint', text: '基于工单轨迹、设备档案、健康分与同设备历史工单推断，仅供维修参考，不替代现场判断。' }));
     return h('div', { class: 'card' },
         h('div', { class: 'card-head' }, h('h2', { text: 'AI 智能副驾' }),
