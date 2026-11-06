@@ -1,0 +1,19 @@
+{
+  "name": "巡维云 EquipCare · 设备巡检维保平台",
+  "short_name": "巡维云",
+  "description": "设备台账、扫码巡检、维修工单、备件库存、健康分析一站式管理",
+  "start_url": "/app.html",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "theme_color": "#16845b",
+  "background_color": "#f5f7fa",
+  "icons": [
+    { "src": "/assets/favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "/assets/favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    { "name": "扫码巡检", "url": "/m/scan.html" },
+    { "name": "维修工单", "url": "/app.html#/workorder" }
+  ]
+}

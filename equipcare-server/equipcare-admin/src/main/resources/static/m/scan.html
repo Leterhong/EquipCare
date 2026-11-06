@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>设备扫码 · 巡维云 EquipCare</title>
+    <link rel="icon" type="image/svg+xml" href="/assets/favicon.svg">
+    <link rel="manifest" href="/manifest.json">
+    <link rel="stylesheet" href="/css/app.css">
+</head>
+<body>
+<div class="scan-page">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">
+        <span class="logo-mark" style="width:28px;height:28px;border-radius:8px;font-size:12px;background:linear-gradient(140deg,#1d9c6b,#10653f);color:#fff;display:grid;place-items:center;font-weight:700"
+              aria-hidden="true">EC</span>
+        <div>
+            <div style="font-size:13.5px;font-weight:600">巡维云 EquipCare</div>
+            <div style="font-size:11.5px;color:var(--text-muted)">设备扫码</div>
+        </div>
+    </div>
+
+    <div id="scan-host">
+        <div class="scan-card">
+            <div class="scan-body">
+                <div class="skeleton" style="width:50%;margin-bottom:10px"></div>
+                <div class="skeleton" style="width:80%;margin-bottom:10px"></div>
+                <div class="skeleton" style="width:65%"></div>
+            </div>
+        </div>
+    </div>
+
+    <p style="text-align:center;color:var(--text-muted);font-size:11.5px;margin-top:18px">
+        二维码仅包含设备随机标识，不包含任何账号或密码信息
+    </p>
+</div>
+
+<script type="module">
+    import { api, auth } from '/js/api.js';
+
+    const host = document.getElementById('scan-host');
+
+    // =====================================================================
+    // 安全渲染辅助：全部走 DOM API + textContent，禁止把任何动态值拼进 HTML。
+    // 服务端返回的数据同样不做可信假设（数据库数据可能被其他入口污染）。
+    // =====================================================================
+
+    /**
+     * 创建元素。props.class/style/attrs；children 为字符串（textContent 渲染）
+     * 或节点、null。唯一例外：child 为 Node 时原样挂载。
+     */
+    function el(tag, props = {}, ...children) {
+        const node = document.createElement(tag);
+        if (props.class) {
+            node.className = props.class;
+        }
+        if (props.style) {
+            node.style.cssText = props.style;
+        }
+        if (props.attrs) {
+            for (const [key, value] of Object.entries(props.attrs)) {
+                node.setAttribute(key, String(value));
+            }
+        }
+        for (const child of children) {
+            if (child === null || child === undefined) {
+                continue;
+            }
+            if (child instanceof Node) {
+                node.append(child);
+            } else {
+                node.append(document.createTextNode(String(child)));
+            }
+        }
+        return node;
+    }
+
+    /** 文本占位：空值显示 — */
+    function text(value) {
+        return value === null || value === undefined || value === '' ? '—' : String(value);
+    }
+
+    function row(label, value) {
+        return el('div', { class: 'scan-row' },
+            el('span', {}, label),
+            value instanceof Node ? value : el('span', {}, text(value)));
+    }
+
+    function card(...children) {
+        return el('div', { class: 'scan-card' }, ...children);
+    }
+
+    function body(...children) {
+        return el('div', { class: 'scan-body' }, ...children);
+    }
+
+    function clearHost() {
+        host.textContent = '';
+    }
+
+    function fail(title, message, action) {
+        clearHost();
+        const actions = el('div', { style: 'display:flex;gap:10px' });
+        if (action === 'login') {
+            actions.append(el('a', {
+                class: 'btn btn-primary',
+                attrs: { href: '/index.html?redirect=' + encodeURIComponent(location.pathname + location.search) },
+            }, '去登录'));
+        }
+        actions.append(el('a', { class: 'btn', attrs: { href: '/app.html' } }, '进入系统'));
+        if (action === 'list') {
+            actions.append(el('a', { class: 'btn btn-primary', attrs: { href: '/app.html#/equipment' } }, '去设备列表'));
+        }
+        host.append(card(body(
+            el('h2', { style: 'font-size:16px;margin-bottom:8px' }, title),
+            el('p', { style: 'color:var(--text-secondary);font-size:13px;margin:0 0 14px' }, message),
+            actions)));
+    }
+
+    // URL 参数严格校验：设备扫码标识为服务端生成的随机串，只允许字母数字下划线连字符。
+    // 不合法的 token 直接拒绝，且不发起任何 API 请求（防注入与防探测）。
+    const rawToken = new URLSearchParams(location.search).get('token') || '';
+    const TOKEN_PATTERN = /^[A-Za-z0-9_-]{6,64}$/;
+    const token = TOKEN_PATTERN.test(rawToken) ? rawToken : null;
+
+    if (!token) {
+        // 无 token：本页即扫码器 —— 调起摄像头识别设备二维码（第八期创新升级）
+        startScanner();
+    } else if (!auth.accessToken) {
+        fail('请先登录', '扫码查看设备档案需要登录，登录后会自动回到本页。', 'login');
+    } else {
+        load();
+    }
+
+    /**
+     * 摄像头扫码：优先使用原生 BarcodeDetector（Chrome/Edge/Android WebView 均支持）。
+     * 二维码内容是完整 URL，从中提取 token 参数并校验格式后跳转本页；
+     * 不支持的原生能力时给出明确引导（系统相机扫码 / 进入设备列表检索）。
+     */
+    async function startScanner() {
+        clearHost();
+        if (!('BarcodeDetector' in window)) {
+            fail('当前浏览器不支持摄像头扫码',
+                '可以使用手机系统相机扫码后打开链接；或在系统内直接检索设备。', 'list');
+            return;
+        }
+        let stream = null;
+        try {
+            stream = await navigator.mediaDevices.getUserMedia({
+                video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } },
+                audio: false,
+            });
+        } catch (e) {
+            fail('无法打开摄像头',
+                '请在系统设置中授予本页面相机权限后刷新重试；也可以直接进入设备列表检索设备。', 'list');
+            return;
+        }
+        const hint = el('p', {
+            style: 'text-align:center;color:var(--text-secondary);font-size:13px;margin:10px 0 0',
+        }, '对准设备上的二维码，识别后自动打开设备档案…');
+        const video = el('video', {
+            attrs: { playsinline: 'true', muted: 'true', autoplay: 'true' },
+            style: 'width:100%;max-width:420px;aspect-ratio:3/4;object-fit:cover;border-radius:12px;background:#000;display:block;margin:0 auto',
+        });
+        video.srcObject = stream;
+        const listBtn = el('a', { class: 'btn', attrs: { href: '/app.html#/equipment' } }, '不扫码，去设备列表');
+        host.append(card(body(video, hint, el('div', { style: 'display:flex;justify-content:center;margin-top:12px' }, listBtn))));
+
+        const detector = new window.BarcodeDetector({ formats: ['qr_code'] });
+        let stopped = false;
+        const stop = () => {
+            if (stopped) {
+                return;
+            }
+            stopped = true;
+            try {
+                stream.getTracks().forEach((t) => t.stop());
+            } catch (ignored) {
+                // 已停止
+            }
+        };
+        window.addEventListener('pagehide', stop, { once: true });
+
+        const tick = async () => {
+            if (stopped) {
+                return;
+            }
+            try {
+                const codes = await detector.detect(video);
+                if (codes.length) {
+                    let value = codes[0].rawValue || '';
+                    let candidate = value;
+                    try {
+                        candidate = new URL(value).searchParams.get('token') || value;
+                    } catch (ignored) {
+                        // 二维码内容是裸 token 而非 URL，直接使用
+                    }
+                    if (TOKEN_PATTERN.test(candidate)) {
+                        stop();
+                        location.replace('/m/scan.html?token=' + encodeURIComponent(candidate));
+                        return;
+                    }
+                }
+            } catch (ignored) {
+                // 单帧识别失败忽略
+            }
+            setTimeout(tick, 350);
+        };
+        video.addEventListener('loadedmetadata', () => video.play().catch(() => {}));
+        tick();
+    }
+
+    const STATUS_LABEL = { IN_USE: '在用', IDLE: '停用/闲置', REPAIRING: '维修中', SCRAPPED: '已报废' };
+    const STATUS_COLOR = { IN_USE: '#7fd6a6', IDLE: '#b9c3d4', REPAIRING: '#f0c274', SCRAPPED: '#f09b9b' };
+
+    function statusBadge(code) {
+        const dot = el('span', {
+            style: `width:6px;height:6px;border-radius:50%;background:${STATUS_COLOR[code] || STATUS_COLOR.IDLE};display:inline-block`,
+        });
+        return el('span', {
+            style: 'display:inline-flex;align-items:center;gap:6px;background:rgba(255,255,255,.12);padding:3px 10px;border-radius:999px;font-size:12px',
+        }, dot, STATUS_LABEL[code] || code || '—');
+    }
+
+    function pill(textValue) {
+        return el('span', {
+            style: 'background:rgba(255,255,255,.12);padding:3px 10px;border-radius:999px;font-size:12px',
+        }, text(textValue));
+    }
+
+    /** 巡检结果单元格：异常时红字加粗（纯文本，不引入 HTML） */
+    function inspectResult(item) {
+        if (item.result === 'ABNORMAL') {
+            return el('b', { style: 'color:#b93b3b' }, `异常 ${item.abnormalCount || 0} 项`);
+        }
+        return el('span', {}, item.result === 'NORMAL' ? '正常' : text(item.status));
+    }
+
+    function sectionTitle(titleText) {
+        return el('div', {
+            style: 'font-size:12.5px;font-weight:600;color:var(--text-secondary);margin-bottom:4px',
+        }, titleText);
+    }
+
+    function listSection(titleText, rows, emptyText) {
+        const wrap = body();
+        wrap.style.borderTop = '1px solid var(--border)';
+        wrap.append(sectionTitle(titleText));
+        if (!rows.length) {
+            wrap.append(row(emptyText, null));
+        } else {
+            rows.forEach((node) => wrap.append(node));
+        }
+        return wrap;
+    }
+
+    async function load() {
+        try {
+            const data = await api.get('/api/asset/equipment/scan', { token });
+
+            const inspections = (data.recentInspections || []).map((item) =>
+                el('div', { class: 'scan-row' },
+                    el('span', {}, text(item.planDate), ' · ', text(item.taskCode)),
+                    inspectResult(item)));
+            const repairs = (data.repairHistory || []).map((item) =>
+                el('div', { class: 'scan-row' },
+                    el('span', {}, text((item.reportTime || '').slice(0, 10)), ' · ', text(item.title)),
+                    el('span', {}, item.status === 'COMPLETED' ? '已完成' : text(item.assigneeName || item.status))));
+
+            const head = el('div', { class: 'scan-top' },
+                el('div', { class: 'asset-no' }, text(data.assetNo)),
+                el('h2', {}, text(data.equipmentName)),
+                el('div', { style: 'display:flex;gap:8px;align-items:center;flex-wrap:wrap' },
+                    statusBadge(data.status),
+                    pill(`健康分 ${data.healthScore ?? '—'}`)));
+
+            const info = body(
+                row('设备分类', data.categoryName),
+                row('所在位置', data.locationPath),
+                row('责任人', data.responsibleUserName),
+                row('最近巡检', text((data.lastInspectTime || '').slice(0, 16))),
+                row('下次巡检', text((data.nextInspectTime || '').slice(0, 16))),
+                row('巡检状态', data.inspectOverdue
+                    ? el('b', { style: 'color:#b93b3b' }, '已逾期')
+                    : el('span', {}, '正常')));
+
+            const actions = el('div', { class: 'scan-actions' },
+                el('a', { class: 'btn btn-primary', attrs: { href: `/app.html#/equipment/${encodeURIComponent(data.id)}` } }, '查看完整档案'),
+                el('a', { class: 'btn', attrs: { href: '/app.html#/equipment' } }, '设备列表'));
+
+            clearHost();
+            host.append(
+                card(head, info,
+                    listSection('最近巡检', inspections, '暂无巡检记录'),
+                    listSection('历史维修', repairs, '暂无维修记录'),
+                    actions),
+                el('p', { style: 'text-align:center;color:var(--text-muted);font-size:11.5px;margin-top:14px' },
+                    '本次扫码人：', text(data.scannedBy)));
+        } catch (error) {
+            if (error.code === 403) {
+                fail('没有查看权限', '当前账号缺少设备查看权限（asset:equipment:view），请联系管理员分配角色。');
+            } else if (error.code === 2001) {
+                fail('设备不存在', '二维码可能已失效，请联系设备管理员重新生成。');
+            } else {
+                fail('加载失败', error.message || '请稍后重试');
+            }
+        }
+    }
+</script>
+    <script src="/js/pwa.js" defer></script>
+</body>
+</html>

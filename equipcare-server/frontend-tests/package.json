@@ -1,0 +1,15 @@
+{
+  "name": "equipcare-frontend-tests",
+  "version": "1.0.0",
+  "private": true,
+  "description": "巡维云 EquipCare 前端单元测试（Vitest + jsdom）。仅为本目录的测试工具链依赖，前端运行时仍是零依赖原生 ES Module，无需构建即可运行。",
+  "type": "module",
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "devDependencies": {
+    "jsdom": "^26.1.0",
+    "vitest": "^3.2.4"
+  }
+}

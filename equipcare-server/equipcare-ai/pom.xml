@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.equipcare</groupId>
+        <artifactId>equipcare-server</artifactId>
+        <version>0.1.0</version>
+    </parent>
+
+    <artifactId>equipcare-ai</artifactId>
+    <name>equipcare-ai</name>
+    <description>AI 智能副驾：故障诊断（流式）/ 智能派单推荐 / 维修报告生成。OpenAI 兼容多 Provider，默认关闭、fail-open</description>
+
+    <dependencies>
+        <dependency>
+            <groupId>com.equipcare</groupId>
+            <artifactId>equipcare-common</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.equipcare</groupId>
+            <artifactId>equipcare-system</artifactId>
+        </dependency>
+        <!-- AI 上下文数据全部来自业务库：工单/维修记录/设备台账/健康快照/维修工负荷 -->
+        <dependency>
+            <groupId>com.equipcare</groupId>
+            <artifactId>equipcare-business</artifactId>
+        </dependency>
+
+        <!-- Web / 安全（@PreAuthorize） -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-security</artifactId>
+        </dependency>
+
+        <!-- Lombok -->
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <version>${lombok.version}</version>
+            <scope>provided</scope>
+        </dependency>
+
+        <!-- 测试 -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+</project>

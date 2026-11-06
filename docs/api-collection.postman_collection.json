@@ -1,0 +1,170 @@
+{
+  "info": {
+    "name": "巡维云 EquipCare · 接口测试集合",
+    "description": "第九阶段交付：核心接口测试集合（Postman v2.1，可导入 Postman 或 Apifox）。\n\n使用步骤：\n1. 修改集合变量 baseUrl 为实际环境地址；\n2. 先运行「认证/登录」请求，前置脚本会自动把 accessToken / refreshToken 存入集合变量；\n3. 其余请求自动携带 Bearer {{accessToken}}；\n4. 全部请求与 scripts/api-conformance.py 的自动化断言一一对应（39 项，见 docs/06-功能测试报告.md）。",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://127.0.0.1:8080" },
+    { "key": "accessToken", "value": "" },
+    { "key": "refreshToken", "value": "" },
+    { "key": "username", "value": "e2e_admin" },
+    { "key": "password", "value": "请填入口令，勿提交到公共仓库" }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [{ "key": "token", "value": "{{accessToken}}", "type": "string" }]
+  },
+  "item": [
+    {
+      "name": "认证",
+      "item": [
+        {
+          "name": "登录（自动保存令牌）",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "pm.test('登录成功 code=200', () => pm.expect(body.code).to.eql(200));",
+                  "pm.collectionVariables.set('accessToken', body.data.accessToken);",
+                  "pm.collectionVariables.set('refreshToken', body.data.refreshToken);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "auth": { "type": "noauth" },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/api/auth/login",
+            "body": { "mode": "raw", "raw": "{\n  \"username\": \"{{username}}\",\n  \"password\": \"{{password}}\"\n}" }
+          }
+        },
+        {
+          "name": "刷新令牌",
+          "request": {
+            "method": "POST",
+            "auth": { "type": "noauth" },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/api/auth/refresh",
+            "body": { "mode": "raw", "raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}" }
+          }
+        },
+        {
+          "name": "当前用户信息 /api/auth/me",
+          "request": { "method": "GET", "url": "{{baseUrl}}/api/auth/me" }
+        }
+      ]
+    },
+    {
+      "name": "设备资产",
+      "item": [
+        { "name": "设备列表（分页）", "request": { "method": "GET", "url": "{{baseUrl}}/api/asset/equipment?pageNum=1&pageSize=10" } },
+        { "name": "设备详情", "request": { "method": "GET", "url": "{{baseUrl}}/api/asset/equipment/1" } },
+        {
+          "name": "新增设备（重复 assetNo 应 422）",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/api/asset/equipment",
+            "body": { "mode": "raw", "raw": "{\n  \"assetNo\": \"EC-TEST-001\",\n  \"name\": \"测试设备\",\n  \"categoryId\": 1,\n  \"locationId\": 1,\n  \"status\": \"IN_USE\"\n}" }
+          }
+        },
+        { "name": "设备二维码 PNG", "request": { "method": "GET", "url": "{{baseUrl}}/api/asset/equipment/1/qrcode.png" } },
+        { "name": "维修历史", "request": { "method": "GET", "url": "{{baseUrl}}/api/asset/equipment/1/repair-history" } },
+        { "name": "巡检历史", "request": { "method": "GET", "url": "{{baseUrl}}/api/asset/equipment/1/inspect-history" } }
+      ]
+    },
+    {
+      "name": "巡检中心",
+      "item": [
+        { "name": "任务列表", "request": { "method": "GET", "url": "{{baseUrl}}/api/inspection/tasks?pageNum=1&pageSize=10" } },
+        { "name": "任务详情", "request": { "method": "GET", "url": "{{baseUrl}}/api/inspection/tasks/1" } },
+        { "name": "开始巡检", "request": { "method": "POST", "url": "{{baseUrl}}/api/inspection/tasks/1/start", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{}" } } },
+        {
+          "name": "提交巡检结果（三态）",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/api/inspection/tasks/1/submit",
+            "body": { "mode": "raw", "raw": "{\n  \"items\": [\n    { \"templateItemId\": 1, \"result\": \"NORMAL\", \"itemValue\": \"1\" },\n    { \"templateItemId\": 2, \"result\": \"ABNORMAL\", \"remark\": \"异响\" },\n    { \"templateItemId\": 3, \"result\": \"SKIPPED\", \"skipReason\": \"区域封闭\" }\n  ],\n  \"remark\": null\n}" }
+          }
+        },
+        { "name": "巡检异常列表", "request": { "method": "GET", "url": "{{baseUrl}}/api/inspection/anomalies?pageNum=1&pageSize=10" } },
+        { "name": "日历统计", "request": { "method": "GET", "url": "{{baseUrl}}/api/inspection/calendar?month=2026-10" } }
+      ]
+    },
+    {
+      "name": "维修工单",
+      "item": [
+        { "name": "工单列表", "request": { "method": "GET", "url": "{{baseUrl}}/api/workorder?pageNum=1&pageSize=10" } },
+        {
+          "name": "报修建单（缺 level 应 422）",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/api/workorder",
+            "body": { "mode": "raw", "raw": "{\n  \"equipmentId\": 1,\n  \"title\": \"主轴异响\",\n  \"faultType\": \"MECHANICAL\",\n  \"faultDesc\": \"运行时周期性异响\",\n  \"level\": \"P3\"\n}" }
+          }
+        },
+        { "name": "工单详情", "request": { "method": "GET", "url": "{{baseUrl}}/api/workorder/1" } },
+        { "name": "可派单人员", "request": { "method": "GET", "url": "{{baseUrl}}/api/workorder/assignees" } },
+        { "name": "派单", "request": { "method": "POST", "url": "{{baseUrl}}/api/workorder/1/dispatch", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"assigneeId\": 3,\n  \"priority\": \"NORMAL\"\n}" } } },
+        { "name": "接单（未派单时 409）", "request": { "method": "POST", "url": "{{baseUrl}}/api/workorder/1/accept" } },
+        { "name": "开始维修", "request": { "method": "POST", "url": "{{baseUrl}}/api/workorder/1/start-repair", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"reason\": \"开始检修\",\n  \"diagnosis\": \"轴承磨损\",\n  \"estimateMinutes\": 90\n}" } } },
+        {
+          "name": "维修记录（FINISH 需 afterImageIds）",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/api/workorder/1/records",
+            "body": { "mode": "raw", "raw": "{\n  \"recordType\": \"FINISH\",\n  \"content\": \"更换轴承完毕，试机正常\",\n  \"costMinutes\": 90,\n  \"afterImageIds\": \"1\"\n}" }
+          }
+        },
+        { "name": "提交验收", "request": { "method": "POST", "url": "{{baseUrl}}/api/workorder/1/submit-verify", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"repairSummary\": \"更换主轴轴承一套\",\n  \"laborHours\": 1.5\n}" } } },
+        { "name": "验收通过", "request": { "method": "POST", "url": "{{baseUrl}}/api/workorder/1/verify-pass", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"qualityScore\": 5,\n  \"remark\": \"维修完整\"\n}" } } },
+        { "name": "验收退回", "request": { "method": "POST", "url": "{{baseUrl}}/api/workorder/1/verify-reject", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"reason\": \"试机仍有异响，退回返修\"\n}" } } },
+        { "name": "操作时间线", "request": { "method": "GET", "url": "{{baseUrl}}/api/workorder/1/timeline" } }
+      ]
+    },
+    {
+      "name": "备品备件",
+      "item": [
+        { "name": "备件列表", "request": { "method": "GET", "url": "{{baseUrl}}/api/inventory/parts?pageNum=1&pageSize=10" } },
+        { "name": "入库（数量须>0）", "request": { "method": "POST", "url": "{{baseUrl}}/api/inventory/stock/in", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"partId\": 1,\n  \"quantity\": 10,\n  \"unitPrice\": 12.5,\n  \"remark\": \"采购到货\"\n}" } } },
+        { "name": "出库（库存不足应 422/4001）", "request": { "method": "POST", "url": "{{baseUrl}}/api/inventory/stock/out", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"partId\": 1,\n  \"quantity\": 999999,\n  \"reason\": \"超量测试\"\n}" } } },
+        { "name": "库存流水", "request": { "method": "GET", "url": "{{baseUrl}}/api/inventory/stock/txns/page?pageNum=1&pageSize=10" } },
+        { "name": "库存预警", "request": { "method": "GET", "url": "{{baseUrl}}/api/inventory/alerts" } }
+      ]
+    },
+    {
+      "name": "运营分析",
+      "item": [
+        { "name": "驾驶舱 14 指标", "request": { "method": "GET", "url": "{{baseUrl}}/api/analytics/dashboard/summary" } },
+        { "name": "驾驶舱 8 图", "request": { "method": "GET", "url": "{{baseUrl}}/api/analytics/dashboard/charts?start=2026-10-01&end=2026-10-31" } },
+        { "name": "导出设备清单 Excel", "request": { "method": "GET", "url": "{{baseUrl}}/api/export/devices" } }
+      ]
+    },
+    {
+      "name": "消息与文件",
+      "item": [
+        { "name": "消息列表", "request": { "method": "GET", "url": "{{baseUrl}}/api/system/messages?pageNum=1&pageSize=10" } },
+        { "name": "未读数", "request": { "method": "GET", "url": "{{baseUrl}}/api/system/messages/unread-count" } },
+        { "name": "上传文件（白名单 jpg/png/pdf/docx/xlsx）", "request": { "method": "POST", "url": "{{baseUrl}}/api/files/upload?bizType=WORK_ORDER" } },
+        { "name": "下载文件", "request": { "method": "GET", "url": "{{baseUrl}}/api/files/1" } }
+      ]
+    },
+    {
+      "name": "系统管理",
+      "item": [
+        { "name": "用户列表", "request": { "method": "GET", "url": "{{baseUrl}}/api/system/users?pageNum=1&pageSize=10" } },
+        { "name": "角色列表", "request": { "method": "GET", "url": "{{baseUrl}}/api/system/roles" } },
+        { "name": "权限清单", "request": { "method": "GET", "url": "{{baseUrl}}/api/system/permissions" } },
+        { "name": "操作审计", "request": { "method": "GET", "url": "{{baseUrl}}/api/system/audit?pageNum=1&pageSize=10" } }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,23 @@
+# ---- 仓库根级忽略 ----
+# 本地备份归档
+backup-*.tar.gz
+*.backup.zip
+
+# IDE
+.idea/
+*.iml
+.vscode/
+
+# 系统杂物
+.DS_Store
+Thumbs.db
+.workbuddy/
+
+# Python（黑盒验证脚本）
+__pycache__/
+*.pyc
+
+# 子目录（equipcare-server/.gitignore 已覆盖 .env/logs/data/target/node_modules 等）
+
+# ---- ZCode 会话产物 ----
+.zcode/

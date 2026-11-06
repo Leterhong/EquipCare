@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>登录 · 巡维云 EquipCare</title>
+    <meta name="description" content="巡维云 EquipCare 企业设备巡检与维修管理平台">
+    <link rel="icon" type="image/svg+xml" href="/assets/favicon.svg">
+    <link rel="manifest" href="/manifest.json">
+    <link rel="stylesheet" href="/css/app.css">
+</head>
+<body>
+<div class="login-page">
+    <section class="login-brand">
+        <div class="login-logo">
+            <span class="logo-mark" aria-hidden="true">EC</span>
+            <span>巡维云 EquipCare</span>
+        </div>
+
+        <div class="login-headline">
+            <h1>设备台账、巡检与维修<br>在一套系统里闭环</h1>
+            <p>面向设备科与维修班组的一体化管理平台：扫码定位设备、异常自动派单、状态机约束流转、全过程留痕可追溯。</p>
+            <ul class="login-points">
+                <li><span class="dot"></span><span>设备一物一码，扫码即见档案、当前状态与历史维修</span></li>
+                <li><span class="dot"></span><span>工单状态机管控，越权流转一律拒绝</span></li>
+                <li><span class="dot"></span><span>权限由后端校验，隐藏按钮不是安全边界</span></li>
+                <li><span class="dot"></span><span>关键操作全量审计，历史记录不可篡改</span></li>
+            </ul>
+        </div>
+
+        <div class="login-foot">© 2026 巡维云 EquipCare · 企业内部系统，请勿对外共享账号</div>
+    </section>
+
+    <section class="login-panel">
+        <div class="login-card">
+            <h2>账号登录</h2>
+            <p class="sub">请使用管理员分配的账号登录</p>
+
+            <div id="login-alert" class="alert alert-error" hidden></div>
+
+            <form id="login-form" novalidate>
+                <div class="field">
+                    <label class="required" for="username">登录名</label>
+                    <input class="input" id="username" name="username" autocomplete="username"
+                           placeholder="请输入登录名" required autofocus>
+                </div>
+                <div class="field">
+                    <label class="required" for="password">密码</label>
+                    <input class="input" id="password" name="password" type="password"
+                           autocomplete="current-password" placeholder="请输入密码" required>
+                </div>
+                <button class="btn btn-primary btn-block" id="login-submit" type="submit">登 录</button>
+            </form>
+
+            <div class="login-tip">
+                首次部署请通过启动参数一次性创建管理员：<br>
+                <code>--equipcare.bootstrap.enabled=true --equipcare.bootstrap.username=admin --equipcare.bootstrap.password=&lt;强密码&gt;</code>
+            </div>
+        </div>
+    </section>
+</div>
+
+<script type="module">
+    import { api, auth } from '/js/api.js';
+
+    const form = document.getElementById('login-form');
+    const alertBox = document.getElementById('login-alert');
+    const submit = document.getElementById('login-submit');
+    const params = new URLSearchParams(location.search);
+    const redirect = params.get('redirect') || '/app.html';
+
+    if (auth.accessToken) {
+        location.replace(redirect);
+    }
+
+    function showError(message) {
+        alertBox.textContent = message;
+        alertBox.hidden = false;
+    }
+
+    form.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        alertBox.hidden = true;
+
+        const username = form.username.value.trim();
+        const password = form.password.value;
+        if (!username || !password) {
+            showError('请输入登录名与密码');
+            return;
+        }
+
+        submit.disabled = true;
+        submit.classList.add('loading');
+        try {
+            const data = await api.post('/api/auth/login', { username, password });
+            auth.save(data);
+            auth.saveUser(data.user);
+            try {
+                const me = await api.get('/api/auth/me');
+                auth.saveUser(me);
+            } catch (ignored) {
+                // 资料补充失败不影响登录，主界面会再次拉取
+            }
+            location.replace(redirect);
+        } catch (error) {
+            showError(error.message || '登录失败');
+            form.password.value = '';
+            form.password.focus();
+        } finally {
+            submit.disabled = false;
+            submit.classList.remove('loading');
+        }
+    });
+</script>
+    <script src="/js/pwa.js" defer></script>
+</body>
+</html>

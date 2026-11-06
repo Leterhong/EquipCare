@@ -1,0 +1,40 @@
+# =====================================================================
+# 生产环境 profile（由 SPRING_PROFILES_ACTIVE=prod 激活，Docker Compose 已注入）
+#
+# 安全基线：
+#   1. EQUIPCARE_JWT_SECRET / EQUIPCARE_DB_PASSWORD 必须通过环境变量注入，
+#      未注入或使用开发默认值将拒绝启动（见 ProdSecurityGuard）；
+#   2. Swagger / OpenAPI 默认关闭（springdoc.enabled=false + 网关不放行）；
+#   3. 不打印 SQL，不使用源码目录静态资源。
+# =====================================================================
+
+spring:
+  datasource:
+    # 无默认值：生产必须显式注入，否则启动失败
+    password: ${EQUIPCARE_DB_PASSWORD}
+  web:
+    resources:
+      static-locations: classpath:/static/
+
+# 接口文档：生产默认关闭（端点 404 + Security 白名单不放行双保险）
+springdoc:
+  api-docs:
+    enabled: false
+  swagger-ui:
+    enabled: false
+
+equipcare:
+  jwt:
+    # 无默认值：生产必须显式注入（>=32 字节，JwtTokenProvider 校验长度）
+    secret: ${EQUIPCARE_JWT_SECRET}
+  # 生产环境关闭 Swagger 网关放行（SecurityConfig 读取）
+  apidocs:
+    enabled: false
+
+mybatis-plus:
+  configuration:
+    log-impl: org.apache.ibatis.logging.nologging.NoLoggingImpl
+
+logging:
+  level:
+    com.equipcare: INFO

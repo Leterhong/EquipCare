@@ -1,0 +1,51 @@
+# =====================================================================
+# 巡维云 EquipCare · 后端镜像（多阶段构建）
+# 构建上下文 = equipcare-server/ 目录：
+#   docker build -f Dockerfile.backend -t equipcare/backend:latest .
+# 运行阶段仅含 JRE 17 + 可执行 jar，不含源码与 Maven 缓存。
+# =====================================================================
+
+# ---------- 构建阶段：Maven 3.9 + JDK 17（与 pom 的 release 17 一致） ----------
+FROM maven:3.9-eclipse-temurin-17 AS build
+WORKDIR /build
+
+# 先拷全部模块的 pom 单独拉依赖，源码变更时利用 Docker 层缓存（Maven 多模块工程）
+COPY pom.xml ./
+COPY equipcare-common/pom.xml equipcare-common/
+COPY equipcare-system/pom.xml equipcare-system/
+COPY equipcare-framework/pom.xml equipcare-framework/
+COPY equipcare-business/pom.xml equipcare-business/
+COPY equipcare-admin/pom.xml equipcare-admin/
+RUN mvn -B -q dependency:go-offline || true
+
+COPY equipcare-common/src equipcare-common/src/
+COPY equipcare-system/src equipcare-system/src/
+COPY equipcare-framework/src equipcare-framework/src/
+COPY equipcare-business/src equipcare-business/src/
+COPY equipcare-admin/src equipcare-admin/src/
+RUN mvn -B -q package -DskipTests -pl equipcare-admin -am \
+    && cp equipcare-admin/target/equipcare-server.jar /build/app.jar
+
+# ---------- 运行阶段 ----------
+FROM eclipse-temurin:17-jre
+WORKDIR /app
+
+# 健康检查依赖 curl（actuator/health 探针）
+RUN apt-get update -qq && apt-get install -y -qq --no-install-recommends curl \
+    && rm -rf /var/lib/apt/lists/*
+
+ENV TZ=Asia/Shanghai \
+    JAVA_OPTS="-XX:MaxRAMPercentage=75.0 -Dfile.encoding=UTF-8" \
+    # 生产 profile：application-prod.yml（关闭 SQL 打印 / Swagger，启用敏感配置强校验）
+    SPRING_PROFILES_ACTIVE=prod
+
+# 上传文件目录（由 docker-compose 挂载持久化）
+RUN mkdir -p /data/uploads /app/logs
+
+COPY --from=build /build/app.jar /app/app.jar
+
+EXPOSE 8080
+VOLUME ["/data/uploads", "/app/logs"]
+
+# JVM 内存按容器 cgroup 自适应；全部配置经环境变量注入（见 docker-compose.yml）
+ENTRYPOINT ["sh", "-c", "exec java $JAVA_OPTS -jar /app/app.jar --server.port=8080"]

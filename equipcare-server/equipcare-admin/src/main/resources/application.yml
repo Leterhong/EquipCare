@@ -1,0 +1,316 @@
+# =====================================================================
+# 巡维云 EquipCare —— 主配置
+#
+# 启动前请确认：
+#   1. MySQL 8 已创建数据库（执行 database/00-create-database.sql 与 schema.sql、seed.sql）
+#   2. Redis 已启动（默认 127.0.0.1:6379）
+#   3. JWT 密钥已通过环境变量 EQUIPCARE_JWT_SECRET 注入（长度 >= 32 字节）
+# =====================================================================
+server:
+  port: 8080
+  servlet:
+    context-path: /
+  tomcat:
+    uri-encoding: UTF-8
+    max-swallow-size: 20MB
+  compression:
+    enabled: true
+    mime-types: application/json,application/xml,text/html,text/plain
+  error:
+    include-message: never
+
+spring:
+  application:
+    name: equipcare-server
+  profiles:
+    active: dev
+
+  # 静态资源（js/css/html）每次必须回源校验（ETag 304 复用），
+  # 防止浏览器启发式缓存导致前端更新后仍执行旧脚本
+  web:
+    resources:
+      cache:
+        cachecontrol:
+          no-cache: true
+
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://${EQUIPCARE_DB_HOST:127.0.0.1}:${EQUIPCARE_DB_PORT:3306}/${EQUIPCARE_DB_NAME:equipcare}?useUnicode=true&characterEncoding=utf8&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Shanghai&rewriteBatchedStatements=true
+    username: ${EQUIPCARE_DB_USER:root}
+    password: ${EQUIPCARE_DB_PASSWORD:123456}
+    hikari:
+      pool-name: EquipCareHikari
+      minimum-idle: 5
+      maximum-pool-size: 20
+      idle-timeout: 600000
+      max-lifetime: 1800000
+      connection-timeout: 30000
+      connection-test-query: SELECT 1
+
+  data:
+    redis:
+      host: ${EQUIPCARE_REDIS_HOST:127.0.0.1}
+      port: ${EQUIPCARE_REDIS_PORT:6379}
+      password: ${EQUIPCARE_REDIS_PASSWORD:}
+      database: ${EQUIPCARE_REDIS_DB:0}
+      timeout: 3000ms
+      lettuce:
+        pool:
+          max-active: 16
+          max-idle: 8
+          min-idle: 2
+          max-wait: 3000ms
+
+  servlet:
+    multipart:
+      enabled: true
+      max-file-size: 10MB
+      max-request-size: 20MB
+
+  jackson:
+    time-zone: Asia/Shanghai
+    date-format: yyyy-MM-dd HH:mm:ss
+    default-property-inclusion: always
+    deserialization:
+      fail-on-unknown-properties: false
+
+  messages:
+    basename: i18n/messages
+    encoding: UTF-8
+
+# ---------------------------------------------------------------------
+# MyBatis-Plus
+# ---------------------------------------------------------------------
+mybatis-plus:
+  mapper-locations: classpath*:/mapper/**/*.xml
+  type-aliases-package: com.equipcare.**.entity
+  configuration:
+    map-underscore-to-camel-case: true
+    cache-enabled: false
+    call-setters-on-nulls: true
+    jdbc-type-for-null: 'null'
+  global-config:
+    banner: false
+    db-config:
+      id-type: auto
+      logic-delete-field: deleted
+      logic-delete-value: 1
+      logic-not-delete-value: 0
+      where-strategy: not_empty
+      insert-strategy: not_null
+      update-strategy: not_null
+
+# ---------------------------------------------------------------------
+# 接口文档：http://127.0.0.1:8080/swagger-ui.html
+# ---------------------------------------------------------------------
+springdoc:
+  api-docs:
+    enabled: true
+    path: /v3/api-docs
+  swagger-ui:
+    enabled: true
+    path: /swagger-ui.html
+    tags-sorter: alpha
+    operations-sorter: method
+    persist-authorization: true
+    display-request-duration: true
+  default-flat-param-object: true
+
+# ---------------------------------------------------------------------
+# 业务配置
+# ---------------------------------------------------------------------
+equipcare:
+  jwt:
+    # 生产环境必须通过环境变量注入；长度不足 32 字节将拒绝启动
+    secret: ${EQUIPCARE_JWT_SECRET:EquipCare-Dev-Secret-Key-Change-Me-In-Production-2026}
+    issuer: equipcare
+    access-token-minutes: 120
+    refresh-token-minutes: 10080
+
+  security:
+    login-max-fail: 5
+    lock-minutes: 10
+
+  file:
+    upload-dir: ${EQUIPCARE_UPLOAD_DIR:./data/upload}
+    max-size: 10485760
+    url-prefix: /upload
+    allowed-extensions:
+      - jpg
+      - jpeg
+      - png
+      - gif
+      - webp
+      - pdf
+      - doc
+      - docx
+      - xls
+      - xlsx
+      - mp4
+
+  # 设备二维码
+  #   scan-url-prefix：扫码落地页路径
+  #   scan-base-url  ：对外访问地址，生产必须配置（如 https://equip.example.com），
+  #                    否则二维码里是相对地址，手机扫码无法打开
+  asset:
+    scan-url-prefix: ${EQUIPCARE_SCAN_PREFIX:/m/scan.html}
+    scan-base-url: ${EQUIPCARE_SCAN_BASE_URL:}
+
+  # 智能巡检：时区与定时生成
+  #   zone             ：日期计算时区，必须与业务所在时区一致，默认 Asia/Shanghai
+  #   interval-ms      ：调度间隔（fixedDelay），单轮结束后再计时
+  #   backfill-days    ：重启后向前回补的天数，避免长时间停机后一次性补出大量任务
+  #   enabled          ：测试与本地调试可关闭，生产保持 true
+  inspection:
+    zone: ${EQUIPCARE_INSPECTION_ZONE:Asia/Shanghai}
+    scheduler:
+      enabled: ${EQUIPCARE_INSPECTION_SCHEDULER:true}
+      interval-ms: 60000
+      initial-delay-ms: 10000
+      backfill-days: 7
+
+  # SLA 超时预警：每分钟扫描活跃工单；同一工单同阶段每天至多通知一次（数据库唯一键去重）
+  sla:
+    scheduler:
+      enabled: ${EQUIPCARE_SLA_SCHEDULER:true}
+      interval-ms: 60000
+      initial-delay-ms: 15000
+
+  # 库存不足提醒：每小时扫描低于安全库存的备件；同一备件同一天只提醒一次
+  stock:
+    alert:
+      enabled: ${EQUIPCARE_STOCK_ALERT:true}
+      interval-ms: 3600000
+      initial-delay-ms: 20000
+
+  # 管理员引导：仅在首次部署时开启一次，创建成功后应立即关闭
+  bootstrap:
+    enabled: ${EQUIPCARE_BOOTSTRAP_ENABLED:false}
+    username: ${EQUIPCARE_BOOTSTRAP_USERNAME:}
+    password: ${EQUIPCARE_BOOTSTRAP_PASSWORD:}
+    real-name: ${EQUIPCARE_BOOTSTRAP_REAL_NAME:系统管理员}
+
+  # ---------------------------------------------------------------------
+  # 创新升级（第八期）：事件驱动 / SSE 实时 / AI 副驾
+  # ---------------------------------------------------------------------
+  # 领域事件事务性发件箱：与业务变更同事务落库，调度器异步投递（至少一次语义）
+  outbox:
+    enabled: ${EQUIPCARE_OUTBOX_ENABLED:true}
+    dispatch-interval-ms: 10000
+    initial-delay-ms: 20000
+
+  # SSE 实时推送：消息铃铛 / 工单看板 / SLA 与库存预警即时刷新（前端失败自动回退轮询）
+  sse:
+    enabled: ${EQUIPCARE_SSE_ENABLED:true}
+
+  # AI 智能副驾（OpenAI 兼容协议，任意 Provider 可换）：
+  #   火山方舟  https://ark.cn-beijing.volces.com/api/v3  model 如 doubao-seed-1-6-251015
+  #   智谱 GLM  https://open.bigmodel.cn/api/paas/v4      model 如 glm-4.7
+  #   DeepSeek  https://api.deepseek.com/v1               model 如 deepseek-chat
+  # 红线：enabled=false（默认）时系统全部功能可用，仅 AI 入口隐藏
+  ai:
+    enabled: ${EQUIPCARE_AI_ENABLED:false}
+    base-url: ${EQUIPCARE_AI_BASE_URL:https://ark.cn-beijing.volces.com/api/v3}
+    api-key: ${EQUIPCARE_AI_API_KEY:}
+    model: ${EQUIPCARE_AI_MODEL:}
+    temperature: 0.3
+    max-tokens: 2048
+    connect-timeout-ms: 5000
+    request-timeout-ms: 180000
+    max-concurrent-streams: 4
+
+# ---------------------------------------------------------------------
+# 日志：控制台 + 滚动文件，pattern 中带上 traceId 便于串联一次请求
+# ---------------------------------------------------------------------
+logging:
+  level:
+    root: INFO
+    com.equipcare: INFO
+    org.springframework.security: WARN
+    com.baomidou.mybatisplus: WARN
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} %highlight(%-5level) [%X{traceId:-}] %cyan(%logger{36}) - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level [%X{traceId:-}] %logger{36} - %msg%n"
+  file:
+    name: ${EQUIPCARE_LOG_DIR:./logs}/equipcare.log
+  logback:
+    rollingpolicy:
+      max-file-size: 50MB
+      max-history: 30
+      total-size-cap: 2GB
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: when-authorized
+  health:
+    # 说明：Redis 健康指示器依赖 INFO 命令的解析，部分旧版本 Windows 移植版 Redis
+    # （如 5.0.14.1）会让 Lettuce 解析失败并报 "Cannot read Redis info"，导致整体健康状态为 DOWN。
+    # 本项目对 Redis 的实际链路（登录会话、令牌黑名单、失败计数）由集成测试 PING 校验，
+    # 因此这里关闭该指示器；若部署在标准 Redis 6+ 上可改为 true 获得更细粒度的自检。
+    redis:
+      enabled: false
+    db:
+      enabled: true
+
+---
+# =====================================================================
+# dev：本地开发，打印 SQL
+# =====================================================================
+spring:
+  config:
+    activate:
+      on-profile: dev
+  # 开发期直接读取源码目录下的静态页面，改前端无需重新打包
+  web:
+    resources:
+      static-locations: file:./equipcare-admin/src/main/resources/static/,classpath:/static/
+
+logging:
+  level:
+    com.equipcare: DEBUG
+
+mybatis-plus:
+  configuration:
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+
+---
+# =====================================================================
+# test：自动化测试使用独立库，避免污染开发数据
+# =====================================================================
+spring:
+  config:
+    activate:
+      on-profile: test
+  datasource:
+    url: jdbc:mysql://${EQUIPCARE_DB_HOST:127.0.0.1}:${EQUIPCARE_DB_PORT:3306}/${EQUIPCARE_TEST_DB_NAME:equipcare_test}?useUnicode=true&characterEncoding=utf8&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Shanghai
+  data:
+    redis:
+      database: 1
+
+equipcare:
+  bootstrap:
+    enabled: false
+  # 集成测试自行控制生成/扫描时机，关闭后台调度避免干扰断言
+  inspection:
+    scheduler:
+      enabled: false
+  sla:
+    scheduler:
+      enabled: false
+  stock:
+    alert:
+      enabled: false
+
+mybatis-plus:
+  configuration:
+    log-impl: org.apache.ibatis.logging.nologging.NoLoggingImpl
+
+logging:
+  level:
+    root: WARN
+    com.equipcare: INFO

@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>巡维云 EquipCare · 设备管理平台</title>
+    <link rel="icon" type="image/svg+xml" href="/assets/favicon.svg">
+    <link rel="manifest" href="/manifest.json">
+    <link rel="stylesheet" href="/css/app.css">
+</head>
+<body>
+<div class="app-shell">
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-brand">
+            <span class="logo-mark" aria-hidden="true">EC</span>
+            <span class="brand-text">巡维云 EquipCare</span>
+            <button class="sidebar-toggle" id="sidebar-toggle" type="button"
+                    title="折叠 / 展开导航" aria-label="折叠或展开导航" aria-expanded="true">«</button>
+        </div>
+        <nav class="sidebar-nav" id="nav" aria-label="主菜单"></nav>
+        <div class="sidebar-foot"><span class="brand-text">巡维云 EquipCare · 工业设备运维平台</span></div>
+    </aside>
+
+    <div class="main">
+        <header class="topbar">
+            <div class="crumbs" id="crumbs"></div>
+            <div class="topbar-right">
+                <div class="topbar-search">
+                    <input class="input" id="global-search" type="search"
+                           placeholder="搜索设备编号 / 名称 / 工单"
+                           autocomplete="off" aria-label="全局搜索">
+                    <div class="search-panel" id="search-panel" hidden></div>
+                </div>
+                <button class="bell-btn" id="theme-btn" type="button"
+                        title="切换深浅主题" aria-label="切换深浅主题">🌙</button>
+                <button class="bell-btn" id="bell-btn" type="button"
+                        title="消息通知" aria-label="消息通知">🔔<span class="bell-badge" id="bell-badge" hidden>0</span></button>
+                <div class="avatar-wrap">
+                    <button class="user-chip" id="user-chip" type="button" title="个人中心">
+                        <span class="avatar" id="user-avatar">—</span>
+                        <span class="user-meta">
+                            <b id="user-name">加载中</b>
+                            <span id="user-role">—</span>
+                        </span>
+                    </button>
+                    <div class="avatar-menu" id="avatar-menu" hidden>
+                        <div class="menu-head">
+                            <b id="menu-name">—</b>
+                            <span id="menu-role">—</span>
+                        </div>
+                        <button type="button" id="menu-profile">个人中心</button>
+                        <button type="button" id="menu-messages">消息通知</button>
+                        <button type="button" id="menu-logout">退出登录</button>
+                    </div>
+                </div>
+            </div>
+        </header>
+        <main class="content" id="view" tabindex="-1"></main>
+    </div>
+</div>
+
+<!-- ECharts（本地内置，无 CDN；驾驶舱图表用） -->
+<script src="/js/lib/echarts.min.js"></script>
+<script type="module" src="/js/app.js"></script>
+    <script src="/js/pwa.js" defer></script>
+</body>
+</html>

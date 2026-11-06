@@ -1,0 +1,21 @@
+# ---- 敏感信息：环境变量文件禁止入库 ----
+.env
+*.env.local
+
+# ---- Docker / 运行时产物 ----
+logs/
+data/
+backup/
+
+# ---- 前端测试工具链（frontend-tests 下的依赖可重装）----
+frontend-tests/node_modules/
+
+# ---- 构建产物 ----
+target/
+*.class
+
+# ---- 本地构建/验证日志（一次性排查产物） ----
+build-log*.txt
+verify-log*.txt
+verify-phase*.txt
+nohup.out
