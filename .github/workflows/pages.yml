@@ -2,11 +2,13 @@ name: Pages
 
 # 项目展示站（website/）→ GitHub Pages
 # 上线地址：https://leterhong.github.io/EquipCare/
-# 首次启用需在仓库 Settings → Pages → Build and deployment → Source 选择 "GitHub Actions"
+#
+# 【当前停用】私有仓库在免费计划下不支持 Pages，自动部署会失败。
+# 恢复步骤（仓库转 Public 后）：
+#   1. 把下方 on: 段恢复为 push 触发（取消注释）
+#   2. Settings → Pages → Source 选 "GitHub Actions"
+#   3. Actions → Pages → Run workflow
 on:
-  push:
-    branches: [main]
-    paths: ['website/**']
   workflow_dispatch:
 
 permissions:

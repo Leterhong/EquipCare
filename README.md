@@ -7,7 +7,6 @@
 *扫码巡检 · 七态工单状态机 · SLA 预警 · 事务性 Outbox · SSE 实时推送 · AI 维修副驾*
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
-[![Homepage](https://img.shields.io/badge/🌐_在线介绍页-leterhong.github.io%2FEquipCare-16845b)](https://leterhong.github.io/EquipCare/)
 [![Java](https://img.shields.io/badge/Java-17-orange.svg)](https://adoptium.net/)
 [![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.5.x-6DB33F.svg)](https://spring.io/projects/spring-boot)
 [![CI](https://github.com/Leterhong/EquipCare/actions/workflows/ci.yml/badge.svg)](../../actions/workflows/ci.yml)
@@ -27,8 +26,8 @@
 > 不只是又一个管理系统：**事件驱动架构（事务性 Outbox）+ SSE 实时推送 + 可插拔 AI 副驾**，
 > 每一行架构都有可执行的守护测试。
 >
-> 🌐 **在线介绍页（含界面画廊 / 架构图解 / AI 演示动画）**：
-> **[leterhong.github.io/EquipCare](https://leterhong.github.io/EquipCare/)**
+> 🌐 **在线介绍页**：仓库自带展示站源码（[website/](website/index.html)，含界面画廊 /
+> 架构图解 / AI 演示动画），仓库公开后一键部署到 GitHub Pages。
 
 ## ✨ 核心特性
 
