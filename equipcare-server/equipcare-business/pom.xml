@@ -61,6 +61,12 @@
             <artifactId>poi-ooxml</artifactId>
         </dependency>
 
+        <!-- 通知外发（第九期）：SMTP 邮件，默认关闭、按配置启用 -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-mail</artifactId>
+        </dependency>
+
         <!-- Lombok -->
         <dependency>
             <groupId>org.projectlombok</groupId>

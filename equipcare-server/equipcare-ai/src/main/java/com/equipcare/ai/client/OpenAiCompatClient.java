@@ -214,4 +214,95 @@ public class OpenAiCompatClient {
             super(message, cause);
         }
     }
+
+    // ==================================================================
+    // 多模态（视觉）与向量嵌入 —— 第九期 AI 深化
+    // ==================================================================
+
+    /** 指定模型的一次性视觉对话（图文混合），返回助手完整回复。 */
+    public String chatVision(String visionModel, String systemPrompt, String userText,
+                             List<String> imageDataUrls) {
+        ObjectNode body = objectMapper.createObjectNode();
+        body.put("model", visionModel);
+        body.put("temperature", props.getTemperature());
+        body.put("max_tokens", props.getMaxTokens());
+        ArrayNode messages = body.putArray("messages");
+        ObjectNode sys = messages.addObject();
+        sys.put("role", "system");
+        sys.put("content", systemPrompt);
+        ObjectNode user = messages.addObject();
+        user.put("role", "user");
+        ArrayNode content = user.putArray("content");
+        content.addObject().put("type", "text").put("text", userText);
+        for (String url : imageDataUrls) {
+            content.addObject()
+                    .put("type", "image_url")
+                    .putObject("image_url")
+                    .put("url", url);
+        }
+        HttpRequest request = newRequest(body);
+        try {
+            HttpResponse<String> resp = http.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+            if (resp.statusCode() / 100 != 2) {
+                throw new AiCallException("视觉模型返回 " + resp.statusCode() + ": " + abbreviate(resp.body()));
+            }
+            return objectMapper.readTree(resp.body())
+                    .path("choices").path(0).path("message").path("content").asText();
+        } catch (IOException e) {
+            throw new AiCallException("视觉模型连接失败: " + e.getMessage(), e);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new AiCallException("视觉模型调用被中断", e);
+        }
+    }
+
+    /**
+     * OpenAI 兼容 /embeddings：批量向量化。
+     *
+     * @return 与入参顺序一致的向量列表
+     */
+    public List<double[]> embeddings(String embeddingModel, List<String> inputs) {
+        ObjectNode body = objectMapper.createObjectNode();
+        body.put("model", embeddingModel);
+        ArrayNode input = body.putArray("input");
+        inputs.forEach(input::add);
+        HttpRequest request;
+        try {
+            request = HttpRequest.newBuilder()
+                    .uri(URI.create(props.getBaseUrl() + "/embeddings"))
+                    .timeout(Duration.ofMillis(props.getRequestTimeoutMs()))
+                    .header("Content-Type", "application/json")
+                    .header("Authorization", "Bearer " + props.getApiKey())
+                    .POST(HttpRequest.BodyPublishers.ofString(
+                            objectMapper.writeValueAsString(body), StandardCharsets.UTF_8))
+                    .build();
+        } catch (Exception e) {
+            throw new AiCallException("构造嵌入请求失败: " + e.getMessage(), e);
+        }
+        try {
+            HttpResponse<String> resp = http.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+            if (resp.statusCode() / 100 != 2) {
+                throw new AiCallException("嵌入接口返回 " + resp.statusCode() + ": " + abbreviate(resp.body()));
+            }
+            JsonNode data = objectMapper.readTree(resp.body()).path("data");
+            List<double[]> vectors = new java.util.ArrayList<>();
+            for (JsonNode item : data) {
+                JsonNode arr = item.path("embedding");
+                double[] v = new double[arr.size()];
+                for (int i = 0; i < arr.size(); i++) {
+                    v[i] = arr.get(i).asDouble();
+                }
+                vectors.add(v);
+            }
+            if (vectors.size() != inputs.size()) {
+                throw new AiCallException("嵌入返回条数不符：期望 " + inputs.size() + " 实得 " + vectors.size());
+            }
+            return vectors;
+        } catch (IOException e) {
+            throw new AiCallException("嵌入接口连接失败: " + e.getMessage(), e);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new AiCallException("嵌入调用被中断", e);
+        }
+    }
 }

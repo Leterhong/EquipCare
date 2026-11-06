@@ -1,6 +1,7 @@
 package com.equipcare.ai.controller;
 
 import com.equipcare.ai.client.OpenAiCompatClient;
+import com.equipcare.ai.service.AiDefectService;
 import com.equipcare.ai.service.AiDiagnosisService;
 import com.equipcare.ai.service.AiDispatchService;
 import com.equipcare.ai.service.AiReportService;
@@ -18,6 +19,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
@@ -49,13 +51,16 @@ public class AiController {
     private final AiDiagnosisService diagnosisService;
     private final AiDispatchService dispatchService;
     private final AiReportService reportService;
+    private final AiDefectService defectService;
     private final AiStreamGuard streamGuard;
 
     public AiController(AiDiagnosisService diagnosisService, AiDispatchService dispatchService,
-                        AiReportService reportService, AiStreamGuard streamGuard) {
+                        AiReportService reportService, AiDefectService defectService,
+                        AiStreamGuard streamGuard) {
         this.diagnosisService = diagnosisService;
         this.dispatchService = dispatchService;
         this.reportService = reportService;
+        this.defectService = defectService;
         this.streamGuard = streamGuard;
     }
 
@@ -160,6 +165,18 @@ public class AiController {
     @AuditLog(module = "AI副驾", action = "维修报告生成")
     public Result<Map<String, String>> report(@PathVariable long workOrderId) {
         return Result.ok(Map.of("markdown", reportService.generate(workOrderId)));
+    }
+
+    @Operation(summary = "巡检/报修拍照缺陷识别（多模态视觉）")
+    @PostMapping("/defect-analyze")
+    @PreAuthorize("hasAuthority('wo:workorder:view')")
+    @AuditLog(module = "AI副驾", action = "缺陷识别")
+    public Result<Map<String, String>> defectAnalyze(@RequestBody DefectAnalyzeRequest req) {
+        return Result.ok(Map.of("markdown", defectService.analyze(req.fileIds(), req.hint())));
+    }
+
+    /** 缺陷识别请求：现场照片附件 id（最多 4 张）+ 文字线索 */
+    public record DefectAnalyzeRequest(List<Long> fileIds, String hint) {
     }
 
     /** 并发被拒：以 SSE 错误事件返回并立即完成 */

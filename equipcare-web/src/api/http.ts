@@ -1,0 +1,87 @@
+import axios from 'axios';
+import { useAuthStore } from '../stores/auth';
+import { router } from '../router';
+
+/**
+ * 统一请求客户端：自动带 Bearer；非 200 业务码抛错；
+ * 401 时用 refreshToken 静默续期一次，失败才回登录页（与旧前端行为对齐）。
+ */
+export const http = axios.create({ baseURL: '/', timeout: 15000 });
+
+export interface ApiResult<T> {
+  code: number;
+  message: string;
+  data: T;
+  success: boolean;
+}
+
+export class ApiError extends Error {
+  code: number;
+  constructor(code: number, message: string) {
+    super(message || '请求失败');
+    this.code = code;
+  }
+}
+
+let refreshing: Promise<void> | null = null;
+
+http.interceptors.request.use((config) => {
+  const auth = useAuthStore();
+  if (auth.accessToken) {
+    config.headers.Authorization = `Bearer ${auth.accessToken}`;
+  }
+  return config;
+});
+
+http.interceptors.response.use(
+  async (resp) => {
+    const body = resp.data as ApiResult<unknown>;
+    // 登录接口本身也是 200 包装，这里统一解包
+    if (body && typeof body.code === 'number' && body.code !== 200) {
+      if (body.code === 1002) {
+        await refreshOnce();
+        return http.request(resp.config);
+      }
+      return Promise.reject(new ApiError(body.code, body.message));
+    }
+    return body.data === undefined ? (body as never) : (body.data as never);
+  },
+  async (error) => {
+    const status = error.response?.status;
+    if (status === 401) {
+      try {
+        await refreshOnce();
+        return http.request(error.config);
+      } catch {
+        forceLogin();
+      }
+    }
+    const message = error.response?.data?.message || error.message || '网络异常';
+    return Promise.reject(new ApiError(status || 0, message));
+  },
+);
+
+async function refreshOnce(): Promise<void> {
+  const auth = useAuthStore();
+  if (!auth.refreshToken) {
+    forceLogin();
+    throw new ApiError(1002, '登录已过期');
+  }
+  refreshing ||= axios
+    .post<ApiResult<{ accessToken: string; refreshToken: string }>>('/api/auth/refresh', {
+      refreshToken: auth.refreshToken,
+    })
+    .then((resp) => {
+      auth.save(resp.data.data);
+    })
+    .finally(() => {
+      refreshing = null;
+    });
+  await refreshing;
+}
+
+function forceLogin() {
+  const auth = useAuthStore();
+  auth.clear();
+  router.push('/login');
+}

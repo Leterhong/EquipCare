@@ -50,6 +50,7 @@ const ROUTES = [
     { path: '/messages', title: '通知中心', perm: null, module: () => import('./pages/messages.js') },
     // 设备健康
     { path: '/health', title: '设备健康列表', perm: 'health:view', module: () => import('./pages/health-list.js') },
+    { path: '/analytics/predictive', title: '预测性维护', perm: 'health:view', module: () => import('./pages/predictive.js') },
     { path: '/health/:id', title: '设备健康详情', perm: 'health:view', module: () => import('./pages/health-detail.js') },
     { path: '/users', title: '用户管理', perm: 'system:user:view', module: () => import('./pages/users.js') },
     { path: '/roles', title: '角色管理', perm: 'system:role:manage', module: () => import('./pages/roles.js') },
@@ -104,6 +105,7 @@ const NAV_TREE = [
     ] },
     { group: '运维分析', items: [
         { path: '/health', title: '设备健康', perm: 'health:view' },
+        { path: '/analytics/predictive', title: '预测性维护', perm: 'health:view' },
         { path: '/inspect/stats', title: '巡检统计', perm: 'inspect:stats:view' },
         { path: '/sla/monitor', title: 'SLA 预警中心', perm: 'sla:monitor:view' },
         { path: '/analytics/fault', title: '故障分析', perm: 'dashboard:view' },

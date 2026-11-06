@@ -1,6 +1,8 @@
 package com.equipcare.analytics.controller;
 
+import com.equipcare.analytics.service.ForecastService;
 import com.equipcare.analytics.service.HealthService;
+import com.equipcare.analytics.vo.EquipmentForecastVO;
 import com.equipcare.analytics.vo.HealthVO;
 import com.equipcare.common.annotation.AuditLog;
 import com.equipcare.common.result.Result;
@@ -25,9 +27,18 @@ import java.util.List;
 public class AnalyticsController {
 
     private final HealthService healthService;
+    private final ForecastService forecastService;
 
-    public AnalyticsController(HealthService healthService) {
+    public AnalyticsController(HealthService healthService, ForecastService forecastService) {
         this.healthService = healthService;
+        this.forecastService = forecastService;
+    }
+
+    @Operation(summary = "预测性维护总览", description = "MTBF/MTTR（90 天窗口）+ 健康分线性外推 7 天，按预测分升序（最危险在前）")
+    @GetMapping("/predictive")
+    @PreAuthorize("hasAuthority('health:view')")
+    public Result<List<EquipmentForecastVO>> predictive() {
+        return Result.ok(forecastService.forecastAll());
     }
 
     @Operation(summary = "设备健康分", description = "返回总分、五项扣分/加分明细与近 30 天走势")

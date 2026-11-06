@@ -277,16 +277,22 @@ export function aiCard(detail) {
             h('div', { class: 'card-head' }, h('h2', { text: 'AI 智能副驾' }),
                 h('span', { class: 'tag tag-blue', text: 'Beta' })), body);
     }
-    body.append(
-        h('div', { class: 'ai-actions' },
-            h('button', {
-                class: 'btn btn-primary', type: 'button', text: '⚡ AI 故障诊断',
-                onclick: () => openDiagnosisModal(detail),
-            }),
-            h('button', {
-                class: 'btn', type: 'button', text: '📄 生成维修报告',
-                onclick: () => openReportModal(detail),
-            })),
+    const actions = [
+        h('button', {
+            class: 'btn btn-primary', type: 'button', text: '⚡ AI 故障诊断',
+            onclick: () => openDiagnosisModal(detail),
+        })];
+    if ((detail.faultImages || []).length > 0) {
+        actions.push(h('button', {
+            class: 'btn', type: 'button', text: `📷 AI 看图识别 (${Math.min(detail.faultImages.length, 4)})`,
+            onclick: () => openDefectModal(detail.faultImages, detail.faultDesc),
+        }));
+    }
+    actions.push(h('button', {
+        class: 'btn', type: 'button', text: '📄 生成维修报告',
+        onclick: () => openReportModal(detail),
+    }));
+    body.append(h('div', { class: 'ai-actions' }, ...actions),);
         h('p', { class: 'hint', text: '基于工单轨迹、设备档案、健康分与同设备历史工单推断，仅供维修参考，不替代现场判断。' }));
     return h('div', { class: 'card' },
         h('div', { class: 'card-head' }, h('h2', { text: 'AI 智能副驾' }),

@@ -1,6 +1,7 @@
 package com.equipcare.ai.service;
 
 import com.equipcare.ai.client.OpenAiCompatClient;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 
@@ -16,10 +17,14 @@ public class AiDiagnosisService {
 
     private final AiContextService contextService;
     private final OpenAiCompatClient client;
+    /** 知识库为可选组件（kb-enabled=false 时不存在），诊断自动跳过 RAG 增强 */
+    private final ObjectProvider<AiKnowledgeBaseService> knowledgeBase;
 
-    public AiDiagnosisService(AiContextService contextService, OpenAiCompatClient client) {
+    public AiDiagnosisService(AiContextService contextService, OpenAiCompatClient client,
+                              ObjectProvider<AiKnowledgeBaseService> knowledgeBase) {
         this.contextService = contextService;
         this.client = client;
+        this.knowledgeBase = knowledgeBase;
     }
 
     /** 流式回调集合 */
@@ -32,6 +37,15 @@ public class AiDiagnosisService {
      */
     public OpenAiCompatClient.StreamHandle diagnose(long workOrderId, Callbacks callbacks) {
         String context = contextService.buildDiagnosisContext(workOrderId);
+        // RAG 增强：召回维修知识库最相关的 2~3 条摘录并入上下文（未启用/无命中则为空串）
+        AiKnowledgeBaseService kb = knowledgeBase.getIfAvailable();
+        if (kb != null) {
+            try {
+                context += kb.buildKnowledgeSection(context);
+            } catch (Exception e) {
+                // 知识检索失败不阻塞诊断（fail-open）
+            }
+        }
         var messages = contextService.buildDiagnosisPrompt(context);
         return client.streamChat(messages,
                 callbacks.onDelta(),

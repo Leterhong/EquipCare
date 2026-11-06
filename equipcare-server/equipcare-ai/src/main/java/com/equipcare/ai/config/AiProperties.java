@@ -44,6 +44,15 @@ public class AiProperties {
     /** 全局最大并发 AI 流式请求数（保护上游配额） */
     private int maxConcurrentStreams = 4;
 
+    /** 视觉模型（巡检拍照缺陷识别）：不配则回退 model（需为多模态模型） */
+    private String visionModel = "";
+
+    /** 嵌入模型（维修知识库 RAG）：不配则知识库整体不启用 */
+    private String embeddingModel = "";
+
+    /** 知识库开关（embedding-model 非空时由 yml 派生为 true） */
+    private boolean kbEnabled = false;
+
     public boolean isEnabled() {
         return enabled;
     }
@@ -114,5 +123,29 @@ public class AiProperties {
 
     public void setMaxConcurrentStreams(int maxConcurrentStreams) {
         this.maxConcurrentStreams = maxConcurrentStreams;
+    }
+
+    public String getVisionModel() {
+        return visionModel;
+    }
+
+    public void setVisionModel(String visionModel) {
+        this.visionModel = visionModel;
+    }
+
+    public String getEmbeddingModel() {
+        return embeddingModel;
+    }
+
+    public void setEmbeddingModel(String embeddingModel) {
+        this.embeddingModel = embeddingModel;
+    }
+
+    public boolean isKbEnabled() {
+        return kbEnabled;
+    }
+
+    public void setKbEnabled(boolean kbEnabled) {
+        this.kbEnabled = kbEnabled;
     }
 }
