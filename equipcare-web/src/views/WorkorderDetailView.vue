@@ -169,6 +169,8 @@ const dispatchDialog = reactive({
   path: '',
   list: [] as Assignee[],
   picked: null as number | null,
+  priority: 'NORMAL',
+  resolveHours: null as number | null,
   note: '',
 });
 
@@ -182,6 +184,8 @@ async function dispatchAction(title: string, path: string) {
   dispatchDialog.title = title;
   dispatchDialog.path = path;
   dispatchDialog.picked = null;
+  dispatchDialog.priority = detail.value?.priority || 'NORMAL';
+  dispatchDialog.resolveHours = null;
   dispatchDialog.note = '';
   dispatchDialog.visible = true;
 }
@@ -194,6 +198,8 @@ async function confirmDispatch() {
   await run(
     http.post(`/api/workorder/${id.value}/${dispatchDialog.path}`, {
       assigneeId: dispatchDialog.picked,
+      priority: dispatchDialog.priority,
+      resolveHours: dispatchDialog.resolveHours,
       reason: dispatchDialog.note.trim() || null,
     }),
     '已派单',
@@ -269,7 +275,7 @@ onUnmounted(() => offSse?.());
               取消工单
             </el-button>
             <el-button v-if="detail.status === 'IN_PROGRESS' && detail.assigneeId && canRepair"
-              @click="goLegacyPath(`/workorder/${id}/repair`)">
+              @click="router.push(`/workorder/${id}/repair`)">
               {{ detail.repairStarted ? '维修过程记录' : '开始维修' }}
             </el-button>
             <el-button v-if="detail.status === 'PENDING_REVIEW' && canVerify"
@@ -424,12 +430,34 @@ onUnmounted(() => offSse?.());
       </div>
       <el-empty v-if="!dispatchDialog.list.length" description="暂无可派维修人" :image-size="50" />
     </div>
+    <el-row :gutter="10" style="margin-top: 10px">
+      <el-col :span="12">
+        <el-form-item label="维修优先级" label-position="top">
+          <el-select v-model="dispatchDialog.priority" style="width: 100%">
+            <el-option label="高" value="HIGH" />
+            <el-option label="中" value="NORMAL" />
+            <el-option label="低" value="LOW" />
+          </el-select>
+        </el-form-item>
+      </el-col>
+      <el-col :span="12">
+        <el-form-item label="完成时限（小时，留空按等级默认）" label-position="top">
+          <el-input-number
+            v-model="dispatchDialog.resolveHours"
+            :min="1"
+            :max="720"
+            style="width: 100%"
+            placeholder="留空按等级默认"
+          />
+        </el-form-item>
+      </el-col>
+    </el-row>
     <el-input
       v-model="dispatchDialog.note"
       type="textarea"
       :rows="2"
       placeholder="派单说明（可选，会写进派单轨迹）"
-      style="margin-top: 10px"
+      style="margin-top: 4px"
     />
     <template #footer>
       <el-button @click="dispatchDialog.visible = false">取消</el-button>

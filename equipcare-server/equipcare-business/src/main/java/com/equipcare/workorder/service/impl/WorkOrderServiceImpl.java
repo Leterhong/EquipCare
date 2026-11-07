@@ -41,6 +41,7 @@ import com.equipcare.workorder.enums.WoSource;
 import com.equipcare.workorder.enums.WorkOrderAction;
 import com.equipcare.workorder.enums.WorkOrderLevel;
 import com.equipcare.workorder.enums.WorkOrderPriority;
+import com.equipcare.workorder.WorkOrderAccessPolicy;
 import com.equipcare.workorder.enums.WorkOrderStatus;
 import com.equipcare.workorder.event.WorkOrderCreatedEvent;
 import com.equipcare.workorder.event.WorkOrderStatusChangedEvent;
@@ -180,6 +181,10 @@ public class WorkOrderServiceImpl implements WorkOrderService {
     public WorkOrderDetailVO detail(Long id) {
         WoWorkOrder order = requireOrder(id);
         LoginUser loginUser = SecurityUtils.getLoginUser();
+        // 渗透整改 P3：详情可见性与列表数据范围对齐——SELF 角色仅本单相关人员可见
+        if (!WorkOrderAccessPolicy.isVisible(order, loginUser.getUserId(), new java.util.HashSet<>(loginUser.getRoles()))) {
+            throw BizException.forbidden("无权查看该工单详情");
+        }
         WorkOrderDetailVO vo = new WorkOrderDetailVO();
         fillBase(vo, order);
         vo.setAnomalyId(order.getAnomalyId());
