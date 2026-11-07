@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { onMounted, reactive, ref } from 'vue';
+import { useRouter } from 'vue-router';
 import { http } from '../api/http';
 
 /**
@@ -29,6 +30,7 @@ const STATUS: Record<string, { label: string; tag: 'primary' | 'success' | 'warn
 };
 const LEVEL: Record<string, string> = { P1: 'P1 紧急', P2: 'P2 高', P3: 'P3 中', P4: 'P4 低' };
 
+const router = useRouter();
 const rows = ref<WorkOrderRow[]>([]);
 const total = ref(0);
 const loading = ref(false);
@@ -98,6 +100,11 @@ onMounted(load);
       </el-table-column>
       <el-table-column label="报修时间" width="160">
         <template #default="{ row }">{{ (row.reportTime || '').replace('T', ' ').slice(0, 16) }}</template>
+      </el-table-column>
+      <el-table-column label="操作" width="80" align="right">
+        <template #default="{ row }">
+          <el-button link type="primary" @click="router.push(`/workorder/${row.id}`)">详情</el-button>
+        </template>
       </el-table-column>
     </el-table>
 
