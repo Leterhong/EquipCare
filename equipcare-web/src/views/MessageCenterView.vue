@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from 'vue';
+import { computed, onMounted, onUnmounted, reactive, ref } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { http } from '../api/http';
 
@@ -88,7 +88,18 @@ function rowClassName({ row }: { row: MessageRow }) {
   return row.readFlag === 0 ? 'unread-row' : '';
 }
 
-onMounted(load);
+function onNewMessage() {
+  if (tab.value === 'unread') {
+    query.pageNum = 1;
+  }
+  load();
+}
+
+onMounted(() => {
+  load();
+  window.addEventListener('ec:vue-message-new', onNewMessage);
+});
+onUnmounted(() => window.removeEventListener('ec:vue-message-new', onNewMessage));
 </script>
 
 <template>

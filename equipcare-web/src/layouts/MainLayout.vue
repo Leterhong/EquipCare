@@ -3,6 +3,7 @@ import { computed, onMounted, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useAuthStore, type MenuNode } from '../stores/auth';
 import { http } from '../api/http';
+import { resetRealtime, startRealtime, stopRealtime, useRealtime } from '../composables/useRealtime';
 
 /**
  * 布局壳：服务端菜单（/api/auth/menus）按树渲染 el-menu；
@@ -14,6 +15,7 @@ const route = useRoute();
 const router = useRouter();
 const menus = ref<MenuNode[]>([]);
 const collapsed = ref(false);
+const realtime = useRealtime();
 
 /** 已迁移到 Vue 的路由前缀（与 router/index.ts 保持一致） */
 const MIGRATED = ['/dashboard', '/equipment', '/workorder', '/inspect-task', '/inspect-anomaly', '/inspect-plan', '/spare-part', '/health', '/messages'];
@@ -36,21 +38,31 @@ const legacyLink = computed(() => {
   return `${location.protocol}//${location.hostname}:8080/app.html`;
 });
 
-onMounted(async () => {
-  if (!menus.value.length) {
-    try {
-      menus.value = await http.get<never, MenuNode[]>('/api/auth/menus');
-    } catch {
-      menus.value = [];
-    }
-  }
-});
-
 function logout() {
   http.post('/api/auth/logout', {}).catch(() => {});
+  stopRealtime();
+  resetRealtime();
   auth.clear();
   router.push('/login');
 }
+
+/** 新消息到达：铃铛计数即时刷新（SSE message:new 事件） */
+function onRealtime(e: CustomEvent<{ type: string }>) {
+  if (e.detail?.type === 'message:new') {
+    void realtime.refreshUnread();
+    window.dispatchEvent(new CustomEvent('ec:vue-message-new'));
+  }
+}
+
+onMounted(() => {
+  void http.get<never, MenuNode[]>('/api/auth/menus').then((tree) => {
+    menus.value = tree || [];
+  }).catch(() => {
+    menus.value = [];
+  });
+  startRealtime();
+  window.addEventListener('ec:vue-sse', onRealtime as EventListener);
+});
 </script>
 
 <template>
@@ -96,6 +108,9 @@ function logout() {
         <el-button text @click="collapsed = !collapsed">{{ collapsed ? '☰' : '⟨' }}</el-button>
         <b class="title">{{ route.meta.title || '巡维云' }}</b>
         <div class="spacer" />
+        <el-badge :value="realtime.state.unread" :hidden="!realtime.state.unread" :max="99">
+          <el-button text @click="router.push('/messages')">🔔</el-button>
+        </el-badge>
         <el-dropdown>
           <span class="user">
             <el-avatar :size="30" style="background: #16845b">{{ auth.realName.slice(0, 1) }}</el-avatar>
@@ -151,5 +166,6 @@ function logout() {
 .title { font-size: 15.5px; color: #263445; }
 .spacer { flex: 1; }
 .user { display: flex; align-items: center; gap: 8px; cursor: pointer; color: #263445; }
+.title-row-right { display: flex; align-items: center; gap: 10px; }
 .main { background: #f5f7fa; }
 </style>
