@@ -13,7 +13,7 @@
 
     <groupId>com.equipcare</groupId>
     <artifactId>equipcare-server</artifactId>
-    <version>0.1.0</version>
+    <version>0.2.0</version>
     <packaging>pom</packaging>
     <name>equipcare-server</name>
     <description>巡维云 EquipCare 企业设备巡检与维修管理平台 - 后端父工程（多模块）</description>

@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import os
 import json, os, urllib.request
 BASE = "http://127.0.0.1:8080"
 
@@ -10,7 +11,7 @@ def http(method, path, body=None, token=None):
     with urllib.request.urlopen(req, data) as resp:
         return json.loads(resp.read().decode())
 
-login = http("POST", "/api/auth/login", {"username": "e2e_admin", "password": "S8e2e#2026!x"})
+login = http("POST", "/api/auth/login", {"username": "e2e_admin", "password": os.environ.get("EQUIPCARE_ADMIN_PASSWORD", "CHANGE_ME")})
 token = login["data"]["accessToken"]
 
 # 新建一台正常设备拿 token
