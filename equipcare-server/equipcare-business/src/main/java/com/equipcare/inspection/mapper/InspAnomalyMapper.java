@@ -62,6 +62,18 @@ public interface InspAnomalyMapper extends BaseMapper<InspAnomaly> {
             """)
     List<AttachmentVO> selectAttachments(@Param("ids") String ids);
 
+    /** 现场照片：按文件 ID 集合批量取元数据（IN 走主键索引，供列表页批量装配） */
+    @Select({
+        "<script>",
+        "SELECT f.id, f.file_name, f.file_size, f.content_type",
+        "  FROM sys_file f",
+        " WHERE f.id IN",
+        "<foreach collection='ids' item='id' open='(' separator=',' close=')'>#{id}</foreach>",
+        " ORDER BY f.id ASC",
+        "</script>",
+    })
+    List<AttachmentVO> selectAttachmentsByIds(@Param("ids") java.util.Collection<Long> ids);
+
     /** 异常状态分布（统计页） */
     @Select("""
             SELECT status AS code, COUNT(1) AS count

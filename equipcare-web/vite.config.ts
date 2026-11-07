@@ -30,5 +30,15 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     chunkSizeWarningLimit: 1200,
+    rollupOptions: {
+      output: {
+        // vendor 拆分：框架/组件库独立成块，业务更新时不破坏浏览器缓存
+        manualChunks: {
+          vue: ['vue', 'vue-router', 'pinia'],
+          'element-plus': ['element-plus'],
+          axios: ['axios'],
+        },
+      },
+    },
   },
 });

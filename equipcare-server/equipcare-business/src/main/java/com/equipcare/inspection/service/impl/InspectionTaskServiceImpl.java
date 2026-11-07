@@ -64,6 +64,7 @@ import java.time.LocalDateTime;
 import java.time.YearMonth;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.stream.Collectors;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -483,10 +484,69 @@ public class InspectionTaskServiceImpl implements InspectionTaskService {
     public PageResult<AnomalyVO> pageAnomaly(AnomalyQuery query) {
         IPage<AnomalyVO> page = anomalyMapper.selectAnomalyPage(
                 new Page<>(query.getPageNum(), query.getPageSize()), query);
+        // 批量装配附件（性能优化：消除逐行 N+1，一次 IN 查询后按行分组）
+        Map<String, List<AttachmentVO>> attachmentMap = loadAttachmentsBatch(
+                page.getRecords().stream()
+                        .map(AnomalyVO::getAttachmentIds)
+                        .collect(Collectors.toList()));
         for (AnomalyVO vo : page.getRecords()) {
-            vo.setAttachments(loadAttachments(vo.getAttachmentIds()));
+            vo.setAttachments(attachmentsOf(attachmentMap, vo.getAttachmentIds()));
         }
         return PageResult.of(page.getRecords(), page.getTotal(), page.getCurrent(), page.getSize());
+    }
+
+    /**
+     * 批量取现场照片：合并各行 attachmentIds 去重 → 一次 IN 查询（主键索引）
+     * → 按行 id 拆分。单条详情路径仍走 {@link #loadAttachments(String)}。
+     */
+    private Map<String, List<AttachmentVO>> loadAttachmentsBatch(List<String> attachmentIdsList) {
+        Set<Long> allIds = new java.util.LinkedHashSet<>();
+        for (String ids : attachmentIdsList) {
+            if (!StringUtils.hasText(ids)) {
+                continue;
+            }
+            for (String part : ids.split(",")) {
+                try {
+                    allIds.add(Long.parseLong(part.trim()));
+                } catch (NumberFormatException ignored) {
+                    // 脏数据容错：跳过无法解析的 id
+                }
+            }
+        }
+        if (allIds.isEmpty()) {
+            return java.util.Collections.emptyMap();
+        }
+        List<AttachmentVO> all = anomalyMapper.selectAttachmentsByIds(allIds);
+        Map<Long, List<AttachmentVO>> byId = all.stream()
+                .collect(Collectors.groupingBy(AttachmentVO::getId));
+        Map<String, List<AttachmentVO>> result = new java.util.HashMap<>();
+        for (String ids : new java.util.LinkedHashSet<>(attachmentIdsList)) {
+            if (!StringUtils.hasText(ids)) {
+                continue;
+            }
+            List<AttachmentVO> row = new ArrayList<>();
+            for (String part : ids.split(",")) {
+                try {
+                    List<AttachmentVO> found = byId.get(Long.parseLong(part.trim()));
+                    if (found != null && !found.isEmpty()) {
+                        row.add(found.get(0));
+                    }
+                } catch (NumberFormatException ignored) {
+                    // 同上容错
+                }
+            }
+            result.put(ids, row);
+        }
+        return result;
+    }
+
+    /** 按原始 attachmentIds 字符串取回批量查询结果（保持行内顺序） */
+    private List<AttachmentVO> attachmentsOf(Map<String, List<AttachmentVO>> map, String ids) {
+        if (!StringUtils.hasText(ids)) {
+            return new ArrayList<>();
+        }
+        List<AttachmentVO> row = map.get(ids);
+        return row == null ? new ArrayList<>() : row;
     }
 
     @Override
