@@ -1,4 +1,4 @@
-import axios from 'axios';
+import axios, { type AxiosRequestConfig } from 'axios';
 import { useAuthStore } from '../stores/auth';
 import { router } from '../router';
 
@@ -48,10 +48,11 @@ http.interceptors.response.use(
   },
   async (error) => {
     const status = error.response?.status;
-    if (status === 401) {
+    const cfg = error.config as AxiosRequestConfig & { skipAuthRetry?: boolean };
+    if (status === 401 && !cfg?.skipAuthRetry) {
       try {
         await refreshOnce();
-        return http.request(error.config);
+        return http.request({ ...error.config, skipAuthRetry: true });
       } catch {
         forceLogin();
       }
@@ -67,12 +68,13 @@ async function refreshOnce(): Promise<void> {
     forceLogin();
     throw new ApiError(1002, '登录已过期');
   }
-  refreshing ||= axios
-    .post<ApiResult<{ accessToken: string; refreshToken: string }>>('/api/auth/refresh', {
+  refreshing ||= http
+    .post<never, { accessToken: string; refreshToken: string }>('/api/auth/refresh', {
       refreshToken: auth.refreshToken,
-    })
-    .then((resp) => {
-      auth.save(resp.data.data);
+    }, { skipAuthRetry: true } as AxiosRequestConfig & { skipAuthRetry?: boolean })
+    .then((tokens) => {
+      // 拦截器已解包业务 data，tokens 即 { accessToken, refreshToken }
+      auth.save(tokens);
     })
     .finally(() => {
       refreshing = null;

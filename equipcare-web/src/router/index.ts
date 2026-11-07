@@ -23,6 +23,7 @@ export const router = createRouter({
         { path: 'inspect-anomaly', component: () => import('../views/InspectAnomalyListView.vue'), meta: { title: '巡检异常', perm: 'inspect:anomaly:view' } },
         { path: 'inspect-plan', component: () => import('../views/InspectPlanListView.vue'), meta: { title: '巡检计划', perm: 'inspect:plan:view' } },
         { path: 'health', component: () => import('../views/HealthListView.vue'), meta: { title: '设备健康', perm: 'health:view' } },
+        { path: 'messages', component: () => import('../views/MessageCenterView.vue'), meta: { title: '消息中心' } },
       ],
     },
     { path: '/:pathMatch(.*)*', redirect: '/dashboard' },
