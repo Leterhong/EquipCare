@@ -16,5 +16,5 @@
     "paths": { "@/*": ["src/*"] },
     "types": ["vite/client"]
   },
-  "include": ["src/**/*.ts", "src/**/*.vue", "vite.config.ts"]
+  "include": ["src/**/*.ts", "src/**/*.vue", "tests/**/*.test.ts", "vite.config.ts", "vitest.config.ts", "auto-imports.d.ts", "components.d.ts"]
 }

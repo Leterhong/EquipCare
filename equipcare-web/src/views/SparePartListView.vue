@@ -35,7 +35,7 @@ async function load() {
   }
 }
 
-function stockColor(row: PartRow) {
+function stockColor(row: { currentStock?: number; safetyStock?: number }) {
   if (row.currentStock == null || row.safetyStock == null) return '#94a3b8';
   if (row.currentStock <= row.safetyStock) return '#dc2626'; // 低于安全库存
   if (row.currentStock <= row.safetyStock * 1.5) return '#d97706';

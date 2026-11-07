@@ -5,6 +5,7 @@ import { ElMessage, ElMessageBox } from 'element-plus';
 import { http } from '../api/http';
 import { useAuthStore } from '../stores/auth';
 import { useRealtime } from '../composables/useRealtime';
+import { useAi, streamDiagnosis, type DispatchSuggestion } from '../composables/useAi';
 
 /**
  * 工单详情（Vue 第七批，核心操作页）：
@@ -174,6 +175,27 @@ const dispatchDialog = reactive({
   note: '',
 });
 
+const aiSuggesting = ref(false);
+const aiSuggestions = ref<DispatchSuggestion[]>([]);
+
+async function aiSuggest() {
+  aiSuggesting.value = true;
+  aiSuggestions.value = [];
+  try {
+    const list = await useAiSuggest();
+    aiSuggestions.value = list;
+    if (!list.length) ElMessage.warning('AI 未给出推荐（暂无候选维修工）');
+  } catch (e) {
+    ElMessage.error((e as Error).message || 'AI 推荐失败');
+  } finally {
+    aiSuggesting.value = false;
+  }
+}
+async function useAiSuggest() {
+  const { suggestDispatch } = await import('../composables/useAi');
+  return suggestDispatch(id.value);
+}
+
 async function dispatchAction(title: string, path: string) {
   try {
     dispatchDialog.list = await http.get<never, Assignee[]>('/api/workorder/assignees');
@@ -187,6 +209,7 @@ async function dispatchAction(title: string, path: string) {
   dispatchDialog.priority = detail.value?.priority || 'NORMAL';
   dispatchDialog.resolveHours = null;
   dispatchDialog.note = '';
+  aiSuggestions.value = [];
   dispatchDialog.visible = true;
 }
 
@@ -207,6 +230,68 @@ async function confirmDispatch() {
   dispatchDialog.visible = false;
 }
 
+const ai = useAi();
+const aiOn = ref<boolean | null>(null); // null=探测中
+const aiPanel = reactive({ visible: false, html: '', busy: false });
+let closeAiStream: (() => void) | null = null;
+
+function renderLite(md: string): string {
+  // 与旧版 ai-copilot 同源的轻量 Markdown 渲染（先转义再标记，杜绝注入）
+  const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  return md
+    .replace(/^### (.*)$/gm, '<h4>$1</h4>')
+    .replace(/^## (.*)$/gm, '<h3>$1</h3>')
+    .replace(/^# (.*)$/gm, '<h3>$1</h3>')
+    .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+    .replace(/`([^`]+)`/g, '<code>$1</code>')
+    .replace(/^- (.*)$/gm, '<li>$1</li>')
+    .replace(/(<li>[\s\S]*?<\/li>)(?!\s*<li>)/g, '<ul>$1</ul>')
+    .replace(/^(?!<[hul])(.+)$/gm, '<p>$1</p>');
+}
+
+async function openDiagnosis() {
+  aiPanel.visible = true;
+  aiPanel.html = '<p style="color:#94a3b8">AI 推理中，请稍候…</p>';
+  closeAiStream?.();
+  closeAiStream = await streamDiagnosis(id.value, {
+    onDelta: (delta) => {
+      aiDiagAcc.value += delta || '';
+      aiPanel.html = renderLite(aiDiagAcc.value);
+    },
+    onError: (m) => {
+      aiPanel.html = `<p style="color:#dc2626">⚠ ${m}</p>`;
+    },
+    onFail: (e) => {
+      aiPanel.html = `<p style="color:#dc2626">⚠ ${e.message}</p>`;
+    },
+    onDone: () => closeAiStream?.(),
+  });
+  void aiOn;
+}
+const aiDiagAcc = ref('');
+
+async function openReport() {
+  aiPanel.visible = true;
+  aiPanel.html = '<p style="color:#94a3b8">AI 正在撰写维修报告…</p>';
+  try {
+    const md = await useAiReport();
+    aiPanel.html = renderLite(md);
+    aiReportRaw.value = md;
+  } catch (e) {
+    aiPanel.html = `<p style="color:#dc2626">⚠ ${(e as Error).message}</p>`;
+  }
+}
+const aiReportRaw = ref('');
+async function useAiReport() {
+  const { generateReport } = await import('../composables/useAi');
+  return generateReport(id.value);
+}
+
+async function copyAiReport() {
+  await navigator.clipboard.writeText(aiReportRaw.value || '');
+  ElMessage.success('报告已复制到剪贴板');
+}
+
 const canRepair = computed(() => auth.can('wo:workorder:repair'));
 const canVerify = computed(() => auth.can('wo:workorder:verify'));
 const canEvaluate = computed(() => auth.can('wo:workorder:evaluate'));
@@ -221,6 +306,7 @@ function goLegacyPath(path: string) {
 let offSse: (() => void) | null = null;
 onMounted(() => {
   load();
+  ai.checkEnabled().then((on) => { aiOn.value = on; });
   offSse = onSse('workorder:changed', (data) => {
     if (Number(data.workOrderId) === id.value) {
       ElMessage.info('该工单有状态更新，已自动刷新');
@@ -228,7 +314,10 @@ onMounted(() => {
     }
   });
 });
-onUnmounted(() => offSse?.());
+onUnmounted(() => {
+  offSse?.();
+  closeAiStream?.();
+});
 </script>
 
 <template>
@@ -288,6 +377,18 @@ onUnmounted(() => offSse?.());
             </el-button>
           </div>
         </div>
+      </el-card>
+
+      <!-- AI 副驾 -->
+      <el-card v-if="aiOn" shadow="never" class="blk">
+        <template #header>
+          <div class="head"><b>🤖 AI 智能副驾</b><el-tag size="small">Beta</el-tag></div>
+        </template>
+        <div style="display:flex;gap:10px;flex-wrap:wrap">
+          <el-button type="primary" @click="openDiagnosis">⚡ AI 故障诊断（流式）</el-button>
+          <el-button @click="openReport">📄 生成维修报告</el-button>
+        </div>
+        <p class="sub" style="margin-top:8px">基于工单轨迹、设备档案与健康分推断，仅供维修参考</p>
       </el-card>
 
       <!-- 概况 + 故障 -->
@@ -415,8 +516,31 @@ onUnmounted(() => offSse?.());
     </template>
   </div>
 
+  <!-- AI 诊断/报告结果弹窗 -->
+  <el-dialog v-model="aiPanel.visible" title="AI 智能副驾" width="720px"
+    @close="closeAiStream?.()">
+    <div class="ai-md" v-html="aiPanel.html"></div>
+    <template #footer>
+      <el-button v-if="aiReportRaw" @click="copyAiReport">复制 Markdown</el-button>
+      <el-button @click="aiPanel.visible = false">关闭</el-button>
+    </template>
+  </el-dialog>
+
   <!-- 派单/转派弹窗（简化版：选人 + 说明；完整版见旧版工作台） -->
   <el-dialog v-model="dispatchDialog.visible" :title="`${dispatchDialog.title} · 选择维修人`" width="460px">
+    <div style="display:flex;gap:8px;margin-bottom:10px">
+      <el-button size="small" type="primary" plain :loading="aiSuggesting" @click="aiSuggest">
+        🎯 AI 推荐维修人
+      </el-button>
+    </div>
+    <div v-if="aiSuggestions.length" class="assignee-list" style="margin-bottom:10px">
+      <div v-for="s in aiSuggestions" :key="s.userId" class="assignee-item"
+        @click="dispatchDialog.picked = s.userId">
+        <b>{{ s.realName || s.userId }}</b>
+        <span class="sub">同类别修复 {{ s.categoryRepaired ?? 0 }} · 累计 {{ s.totalRepaired ?? 0 }} · 在办 {{ s.activeLoad ?? 0 }}</span>
+        <div class="sub">{{ s.reason }}</div>
+      </div>
+    </div>
     <div class="assignee-list">
       <div
         v-for="a in dispatchDialog.list"
@@ -483,4 +607,8 @@ onUnmounted(() => offSse?.());
 .assignee-item { padding: 9px 12px; border: 1px solid var(--el-border-color); border-radius: 8px; cursor: pointer; }
 .assignee-item:hover { border-color: var(--el-color-primary); }
 .assignee-item.picked { border-color: var(--el-color-primary); background: var(--el-color-primary-light-9); }
+.ai-md { font-size: 13.5px; line-height: 1.8; max-height: 55vh; overflow-y: auto; }
+.ai-md h3 { margin: 12px 0 6px; }
+.ai-md ul { padding-left: 20px; }
+.ai-md code { background: #f1f5f9; padding: 1px 5px; border-radius: 4px; }
 </style>

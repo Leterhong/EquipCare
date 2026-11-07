@@ -1,5 +1,8 @@
 import { defineConfig } from 'vite';
 import vue from '@vitejs/plugin-vue';
+import AutoImport from 'unplugin-auto-import/vite';
+import Components from 'unplugin-vue-components/vite';
+import { ElementPlusResolver } from 'unplugin-vue-components/resolvers';
 
 /**
  * 新版前端（Vue 3）构建配置。
@@ -11,7 +14,12 @@ import vue from '@vitejs/plugin-vue';
  */
 export default defineConfig({
   base: './',
-  plugins: [vue()],
+  plugins: [
+    vue(),
+    // Element Plus 按需引入：组件/指令/样式按使用注入（主包 2.4MB → 预计 1MB 内）
+    AutoImport({ resolvers: [ElementPlusResolver()] }),
+    Components({ resolvers: [ElementPlusResolver()] }),
+  ],
   server: {
     port: 5173,
     proxy: {
