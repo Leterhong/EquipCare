@@ -22,6 +22,7 @@ export const router = createRouter({
         { path: 'inspect-task', component: () => import('../views/InspectTaskListView.vue'), meta: { title: '巡检任务', perm: 'inspect:task:view' } },
         { path: 'spare-part', component: () => import('../views/SparePartListView.vue'), meta: { title: '备件台账', perm: 'spare:part:view' } },
         { path: 'workorder/:id/repair', component: () => import('../views/WorkorderRepairView.vue'), meta: { title: '维修过程记录', perm: 'wo:workorder:repair' } },
+        { path: 'inspect-task/:id/execute', component: () => import('../views/InspectExecuteView.vue'), meta: { title: '执行巡检', perm: 'inspect:task:execute' } },
         { path: 'workorder/:id/verify', component: () => import('../views/WorkorderVerifyView.vue'), meta: { title: '维修验收', perm: 'wo:workorder:verify' } },
         { path: 'workorder/:id/evaluate', component: () => import('../views/WorkorderEvaluateView.vue'), meta: { title: '工单评价', perm: 'wo:workorder:evaluate' } },
         { path: 'inspect-anomaly', component: () => import('../views/InspectAnomalyListView.vue'), meta: { title: '巡检异常', perm: 'inspect:anomaly:view' } },
