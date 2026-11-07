@@ -5,6 +5,15 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { createPinia, setActivePinia } from 'pinia';
 import { router } from '../src/router';
 import { useAuthStore } from '../src/stores/auth';
+import { http } from '../src/api/http';
+
+beforeEach(() => {
+  // 离线模式：布局壳 onMounted 的菜单加载/SSE 未读请求立即失败（各处均 catch 静默），
+  // 避免真实 jsdom XHR 挂起拖垮 5s 测试超时
+  http.defaults.adapter = async () => {
+    throw new Error('offline-in-test');
+  };
+});
 
 describe('router guard', () => {
   beforeEach(() => {
