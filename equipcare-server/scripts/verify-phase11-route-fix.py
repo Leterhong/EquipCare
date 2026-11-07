@@ -51,7 +51,7 @@ def visit(page, hash_path):
 
 def main():
     token = http_json("POST", "/api/auth/login",
-                      {"username": "e2e_admin", "password": "S8e2e#2026!x"})["data"]["accessToken"]
+                      {"username": "e2e_admin", "password": os.environ.get("EQUIPCARE_ADMIN_PASSWORD", "CHANGE_ME")})["data"]["accessToken"]
     page_data = http_json(
         "GET", "/api/asset/equipment?pageNum=1&pageSize=1", token=token)
     eq_id = page_data["data"]["records"][0]["id"]
@@ -65,7 +65,7 @@ def main():
 
         page.goto(BASE + "/index.html")
         page.fill("input[name=username]", "e2e_admin")
-        page.fill("input[name=password]", "S8e2e#2026!x")
+        page.fill("input[name=password]", os.environ.get("EQUIPCARE_ADMIN_PASSWORD", "CHANGE_ME"))
         page.click("button[type=submit]")
         page.wait_for_url("**/app.html*", timeout=20000)
 

@@ -14,7 +14,7 @@ with sync_playwright() as p:
 
     page.goto(BASE + "/index.html")
     page.fill("input[name=username]", "e2e_admin")
-    page.fill("input[name=password]", "S8e2e#2026!x")
+    page.fill("input[name=password]", os.environ.get("EQUIPCARE_ADMIN_PASSWORD", "CHANGE_ME"))
     page.click("button[type=submit]")
     page.wait_for_url("**/app.html*", timeout=20000)
 

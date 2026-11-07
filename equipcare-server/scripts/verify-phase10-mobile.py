@@ -27,13 +27,13 @@ with sync_playwright() as p:
     # 登录
     page.goto(BASE + "/index.html")
     page.fill("input[name=username]", "e2e_repairer")
-    page.fill("input[name=password]", "S8e2e#2026!x")
+    page.fill("input[name=password]", os.environ.get("EQUIPCARE_ADMIN_PASSWORD", "CHANGE_ME"))
     page.click("button[type=submit]")
     try:
         page.wait_for_url("**/app.html*", timeout=8000)
     except Exception:
         page.fill("input[name=username]", "e2e_admin")
-        page.fill("input[name=password]", "S8e2e#2026!x")
+        page.fill("input[name=password]", os.environ.get("EQUIPCARE_ADMIN_PASSWORD", "CHANGE_ME"))
         page.click("button[type=submit]")
         page.wait_for_url("**/app.html*", timeout=10000)
     page.wait_for_timeout(1500)
@@ -94,7 +94,7 @@ with sync_playwright() as p:
     dp.on("console", lambda m: errors.append("D:" + m.text) if m.type == "error" and "401" not in m.text else None)
     dp.goto(BASE + "/index.html")
     dp.fill("input[name=username]", "e2e_admin")
-    dp.fill("input[name=password]", "S8e2e#2026!x")
+    dp.fill("input[name=password]", os.environ.get("EQUIPCARE_ADMIN_PASSWORD", "CHANGE_ME"))
     dp.click("button[type=submit]")
     dp.wait_for_url("**/app.html*", timeout=10000)
 
@@ -130,7 +130,7 @@ with sync_playwright() as p:
     tp = tctx.new_page()
     tp.goto(BASE + "/index.html")
     tp.fill("input[name=username]", "e2e_admin")
-    tp.fill("input[name=password]", "S8e2e#2026!x")
+    tp.fill("input[name=password]", os.environ.get("EQUIPCARE_ADMIN_PASSWORD", "CHANGE_ME"))
     tp.click("button[type=submit]")
     tp.wait_for_url("**/app.html*", timeout=10000)
     tp.goto(BASE + "/app.html#/workorder?view=board")

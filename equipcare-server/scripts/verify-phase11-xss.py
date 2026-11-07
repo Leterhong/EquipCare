@@ -41,7 +41,7 @@ def collect_leaf_ids(nodes, out):
 
 def main():
     login = http("POST", "/api/auth/login",
-                 {"username": "e2e_admin", "password": "S8e2e#2026!x"})
+                 {"username": "e2e_admin", "password": os.environ.get("EQUIPCARE_ADMIN_PASSWORD", "CHANGE_ME")})
     token = login["data"]["accessToken"]
 
     cat_ids = collect_leaf_ids(http("GET", "/api/asset/categories/tree", token=token)["data"], [])
