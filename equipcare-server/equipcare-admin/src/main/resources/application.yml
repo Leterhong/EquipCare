@@ -207,6 +207,11 @@ equipcare:
   cors:
     allowed-origins: ${EQUIPCARE_CORS_ALLOWED_ORIGINS:*}
 
+  # 多租户（第十期）：租户管理端点与登录租户校验。单租户模式保持开启
+  # （所有数据 tenant_id=0，行为不变）；开放注册/配额为后续迭代
+  multi-tenant:
+    enabled: ${EQUIPCARE_MULTI_TENANT_ENABLED:true}
+
   # 通知外发（第九期，可选）：企业微信群机器人 / SMTP 邮件，均默认关闭。
   # 事件来源：SLA 超时预警、库存不足、巡检异常（工单状态流转不外发）
   notify:

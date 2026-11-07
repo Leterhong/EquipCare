@@ -8,6 +8,9 @@ import { router } from '../router';
  */
 export const http = axios.create({ baseURL: '/', timeout: 15000 });
 
+/** DELETE 便捷方法（模块级导出，类型安全） */
+export const httpDel = (path: string) => http.delete(path);
+
 export interface ApiResult<T> {
   code: number;
   message: string;

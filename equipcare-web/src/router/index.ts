@@ -23,6 +23,7 @@ export const router = createRouter({
         { path: 'spare-part', component: () => import('../views/SparePartListView.vue'), meta: { title: '备件台账', perm: 'spare:part:view' } },
         { path: 'workorder/:id/repair', component: () => import('../views/WorkorderRepairView.vue'), meta: { title: '维修过程记录', perm: 'wo:workorder:repair' } },
         { path: 'inspect-task/:id/execute', component: () => import('../views/InspectExecuteView.vue'), meta: { title: '执行巡检', perm: 'inspect:task:execute' } },
+        { path: 'inspect-template', component: () => import('../views/InspectTemplateListView.vue'), meta: { title: '巡检模板', perm: 'inspect:template:view' } },
         { path: 'inspect-template-new', component: () => import('../views/InspectTemplateEditView.vue'), meta: { title: '新建巡检模板', perm: 'inspect:template:manage' } },
         { path: 'inspect-template-edit/:id', component: () => import('../views/InspectTemplateEditView.vue'), meta: { title: '编辑巡检模板', perm: 'inspect:template:manage' } },
         { path: 'workorder/:id/verify', component: () => import('../views/WorkorderVerifyView.vue'), meta: { title: '维修验收', perm: 'wo:workorder:verify' } },
@@ -33,6 +34,8 @@ export const router = createRouter({
         { path: 'users', component: () => import('../views/UserListView.vue'), meta: { title: '用户管理', perm: 'system:user:view' } },
         { path: 'roles', component: () => import('../views/RoleListView.vue'), meta: { title: '角色管理', perm: 'system:role:view' } },
         { path: 'audit-logs', component: () => import('../views/AuditLogView.vue'), meta: { title: '审计日志', perm: 'system:audit:view' } },
+        { path: 'workorder-new', component: () => import('../views/WorkorderFormView.vue'), meta: { title: '报修', perm: 'wo:workorder:create' } },
+        { path: 'tenants', component: () => import('../views/TenantListView.vue'), meta: { title: '租户管理', roles: ['ADMIN'] } },
         { path: 'messages', component: () => import('../views/MessageCenterView.vue'), meta: { title: '消息中心' } },
       ],
     },
@@ -47,6 +50,10 @@ router.beforeEach((to) => {
   }
   if (to.meta.perm && auth.loggedIn && !auth.can(to.meta.perm as string)) {
     return { path: '/dashboard' };
+  }
+  if (to.meta.roles && auth.loggedIn) {
+    const ok = (to.meta.roles as string[]).some((r) => auth.user?.roles?.includes(r));
+    if (!ok) return { path: '/dashboard' };
   }
   if (to.meta.title) {
     document.title = `${String(to.meta.title)} · 巡维云 EquipCare`;
