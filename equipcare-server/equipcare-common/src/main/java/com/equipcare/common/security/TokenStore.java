@@ -45,6 +45,13 @@ public class TokenStore {
     private final ObjectMapper objectMapper;
     private volatile long lastDegradeLogAt = 0;
 
+    /**
+     * 登录失败计数的进程内兜底（第九期安全整改）：Redis 不可用时改用内存计数，
+     * 保证暴力破解防护不因缓存故障而完全失效。单实例部署语义完整；
+     * 多实例时各实例独立计数（防护减弱但不失效）。
+     */
+    private final java.util.Map<String, long[]> memLoginFails = new java.util.concurrent.ConcurrentHashMap<>();
+
     public TokenStore(StringRedisTemplate redisTemplate, ObjectMapper objectMapper) {
         this.redisTemplate = redisTemplate;
         this.objectMapper = objectMapper;
@@ -227,15 +234,42 @@ public class TokenStore {
 
     /**
      * 登录失败计数系列操作的降级包装：Redis 故障时按「无失败记录」处理并告警。
-     * 锁定策略暂时失效属于可接受的可用性权衡（安全基线由密码校验与审计保障）。
+     * 锁定策略降级为进程内内存计数兜底（多实例时各实例独立计数），暴力破解防护不因缓存故障失效。
      */
     public long getLoginFailSafe(String username) {
         try {
             return getLoginFail(username);
         } catch (org.springframework.dao.DataAccessException ex) {
             logDegrade("读取登录失败计数", ex);
+            return memGetFail(username);
+        }
+    }
+
+    /** 内存兜底：读取失败计数（窗口过期自动清零） */
+    private long memGetFail(String username) {
+        long[] slot = memLoginFails.get(username);
+        if (slot == null) {
             return 0;
         }
+        // slot = [count, windowStartMillis, windowMillis]
+        if (System.currentTimeMillis() - slot[1] > slot[2]) {
+            memLoginFails.remove(username);
+            return 0;
+        }
+        return slot[0];
+    }
+
+    /** 内存兜底：累加失败计数（窗口基于首次失败时间，与 Redis 版 TTL 语义一致） */
+    private long memIncrFail(String username, Duration ttl) {
+        long now = System.currentTimeMillis();
+        long[] slot = memLoginFails.compute(username, (k, v) -> {
+            if (v == null || now - v[1] > v[2]) {
+                return new long[]{1, now, ttl.toMillis()};
+            }
+            v[0] = v[0] + 1;
+            return v;
+        });
+        return slot[0];
     }
 
     public long increaseLoginFailSafe(String username, Duration ttl) {
@@ -243,11 +277,12 @@ public class TokenStore {
             return increaseLoginFail(username, ttl);
         } catch (org.springframework.dao.DataAccessException ex) {
             logDegrade("累加登录失败计数", ex);
-            return 0;
+            return memIncrFail(username, ttl);
         }
     }
 
     public void clearLoginFailSafe(String username) {
+        memLoginFails.remove(username);
         try {
             clearLoginFail(username);
         } catch (org.springframework.dao.DataAccessException ex) {

@@ -24,14 +24,23 @@ public class WebConfig implements WebMvcConfigurer {
         this.fileStorageProperties = fileStorageProperties;
     }
 
+    /**
+     * CORS 策略（第九期安全整改）：认证走 Authorization 头（非 Cookie），
+     * 因此关闭 allowCredentials，消除「任意来源 + 携带凭据」的组合风险；
+     * 来源默认放开（*），生产环境经 EQUIPCARE_CORS_ALLOWED_ORIGINS 收敛为白名单。
+     */
+    @org.springframework.beans.factory.annotation.Value("${equipcare.cors.allowed-origins:*}")
+    private String corsAllowedOrigins;
+
     @Override
     public void addCorsMappings(CorsRegistry registry) {
         registry.addMapping("/**")
-                .allowedOriginPatterns("*")
+                .allowedOriginPatterns(java.util.Arrays.stream(corsAllowedOrigins.split(","))
+                        .map(String::trim).toArray(String[]::new))
                 .allowedMethods("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS")
                 .allowedHeaders("*")
                 .exposedHeaders(CommonConstants.HEADER_TRACE_ID, "Content-Disposition")
-                .allowCredentials(true)
+                .allowCredentials(false)
                 .maxAge(3600);
     }
 

@@ -99,12 +99,17 @@ class TokenStoreDegradationTest {
     }
 
     @Test
-    @DisplayName("Redis 宕机：登录失败计数降级为 0 / no-op，登录流程可继续")
+    @DisplayName("Redis 宕机：登录失败计数走进程内内存兜底，暴力破解防护不失效")
     void loginFailCountersDegrade() {
         makeRedisDown();
+        // 降级语义（第九期安全整改）：Redis 不可用时改用进程内内存计数兜底，
+        // 暴力破解防护不因缓存故障失效——首次累加应返回 1 而非 0。
         assertThat(tokenStore.getLoginFailSafe("alice")).isZero();
-        assertThat(tokenStore.increaseLoginFailSafe("alice", Duration.ofMinutes(10))).isZero();
+        assertThat(tokenStore.increaseLoginFailSafe("alice", Duration.ofMinutes(10))).isEqualTo(1);
+        assertThat(tokenStore.increaseLoginFailSafe("alice", Duration.ofMinutes(10))).isEqualTo(2);
+        assertThat(tokenStore.getLoginFailSafe("alice")).isEqualTo(2);
         tokenStore.clearLoginFailSafe("alice");
+        assertThat(tokenStore.getLoginFailSafe("alice")).isZero();
     }
 
     @Test
