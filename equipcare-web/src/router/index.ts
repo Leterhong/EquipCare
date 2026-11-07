@@ -17,6 +17,7 @@ export const router = createRouter({
         { path: '', redirect: '/dashboard' },
         { path: 'dashboard', component: () => import('../views/DashboardView.vue'), meta: { title: '数据驾驶舱', perm: 'dashboard:view' } },
         { path: 'equipment', component: () => import('../views/EquipmentListView.vue'), meta: { title: '设备台账', perm: 'asset:equipment:view' } },
+        { path: 'equipment/:id', component: () => import('../views/EquipmentDetailView.vue'), meta: { title: '设备详情', perm: 'asset:equipment:view' } },
         { path: 'workorder', component: () => import('../views/WorkorderListView.vue'), meta: { title: '维修工单', perm: 'wo:workorder:view' } },
         { path: 'inspect-task', component: () => import('../views/InspectTaskListView.vue'), meta: { title: '巡检任务', perm: 'inspect:task:view' } },
         { path: 'spare-part', component: () => import('../views/SparePartListView.vue'), meta: { title: '备件台账', perm: 'spare:part:view' } },

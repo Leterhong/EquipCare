@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { onMounted, reactive, ref } from 'vue';
+import { useRouter } from 'vue-router';
 import { http } from '../api/http';
 
 /**
@@ -24,6 +25,7 @@ const STATUS: Record<string, { label: string; tag: 'success' | 'warning' | 'dang
   SCRAPPED: { label: '已报废', tag: 'danger' },
 };
 
+const router = useRouter();
 const rows = ref<EquipmentRow[]>([]);
 const total = ref(0);
 const loading = ref(false);
@@ -91,6 +93,11 @@ onMounted(load);
       </el-table-column>
       <el-table-column label="最近巡检" width="160">
         <template #default="{ row }">{{ (row.lastInspectTime || '').replace('T', ' ').slice(0, 16) || '—' }}</template>
+      </el-table-column>
+      <el-table-column label="操作" width="90" align="right">
+        <template #default="{ row }">
+          <el-button link type="primary" @click="router.push(`/equipment/${row.id}`)">详情</el-button>
+        </template>
       </el-table-column>
     </el-table>
 

@@ -48,10 +48,12 @@ public class SecurityAlertNotifierImpl implements SecurityAlertNotifier {
         long now = System.currentTimeMillis();
         AtomicLong last = lastAlertAt.computeIfAbsent(username, k -> new AtomicLong());
         long prev = last.get();
-        if (now - prev < THROTTLE_MS && !last.compareAndSet(prev, now)) {
-            return;
+        if (now - prev < THROTTLE_MS) {
+            return; // 节流窗口内：静默
         }
-        last.set(now);
+        if (!last.compareAndSet(prev, now)) {
+            return; // 并发竞争失败：另一线程已发出
+        }
 
         String time = LocalDateTime.now().format(T);
         String subject = "安全告警 · 账号已锁定（" + username + "）";
@@ -63,7 +65,10 @@ public class SecurityAlertNotifierImpl implements SecurityAlertNotifier {
                 若非本人操作，请立即重置该账号密码并检查审计日志。""".formatted(username, maxFail, ip, time);
         String markdown = "**安全告警 · 账号已锁定**\n" + content;
 
-        boolean wecomOk = wecom.sendMarkdown(markdown);
+        boolean wecomOk = false;
+        if (wecom.enabled()) {
+            wecomOk = wecom.sendMarkdown(markdown);
+        }
         boolean mailOk = false;
         String securityEmail = props.getSecurityEmail();
         if (email.enabled() && securityEmail != null && !securityEmail.isBlank()) {
