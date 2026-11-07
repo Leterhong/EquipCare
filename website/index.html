@@ -370,7 +370,7 @@ docker compose exec backend java -jar /app/app.jar \
 <span class="c"># 打开 http://localhost 登录即用 ✅</span></pre>
         <pre id="t-local" class="code" style="display:none"><span class="c"># 前置：JDK 17+ / MySQL 8 / Redis，先建库并执行：</span>
 mysql -u root -p equipcare &lt; database/schema.sql   <span class="c"># 37 张表</span>
-mysql -u root -p equipcare &lt; database/seed.sql     <span class="c"># 演示基础数据</span>
+mysql -u root -p equipcare &lt; database/seed.sql     <span class="c"># 系统基础数据（角色/权限/字典）</span>
 
 <span class="c"># 启动（dev profile，改前端刷新即生效）</span>
 mvn spring-boot:run -pl equipcare-admin

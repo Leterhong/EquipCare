@@ -65,7 +65,7 @@ equipcare-server/                  # Maven 多模块父工程（packaging=pom）
 │   ├── 03-stage3.sql            # 第三阶段增量：eq_equipment_file（已有库升级用，幂等）
 │   ├── 04-stage4.sql            # 第四阶段增量：巡检判定规则/三项结果/日历统计权限/水泵演示数据（幂等，不写死库名）
 │   ├── 05-stage5.sql            # 第五阶段增量：工单优先级/故障照片/维修前后照片/评价表/七态收敛/毫秒精度（幂等，不写死库名）
-│   └── seed.sql                 # 演示基础数据（部门/角色/权限/字典/设备/备件），不含任何账号密码
+│   └── seed.sql                 # 系统基础数据（角色/权限/字典/SLA 政策），空库启动、无业务演示数据
 ├── scripts/
 │   ├── smoke-e2e.py             # 第二阶段闭环冒烟（巡检→异常→工单→验收）
 │   ├── stage3-smoke.py          # 第三阶段端到端冒烟（34 项断言）
@@ -93,7 +93,7 @@ mysql -u root -p < database/00-create-database.sql
 # 2) 建表（33 张表 + 6 个只插入触发器）
 mysql -u root -p equipcare < database/schema.sql
 
-# 3) 导入演示基础数据（4 部门 / 6 角色 / 53 权限 / 12 台设备 / 12 种备件）
+# 3) 导入系统基础数据（部门 / 6 角色 / 53 权限 / 数据字典 / SLA 默认政策）
 mysql -u root -p equipcare < database/seed.sql
 ```
 
