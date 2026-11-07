@@ -210,6 +210,8 @@ equipcare:
   # 通知外发（第九期，可选）：企业微信群机器人 / SMTP 邮件，均默认关闭。
   # 事件来源：SLA 超时预警、库存不足、巡检异常（工单状态流转不外发）
   notify:
+    # 安全告警收件人（账号锁定等事件，逗号分隔；空则告警只走企微）
+    security-email: ${EQUIPCARE_NOTIFY_SECURITY_EMAIL:}
     wecom:
       webhook-url: ${EQUIPCARE_NOTIFY_WECOM_WEBHOOK_URL:}
     mail:

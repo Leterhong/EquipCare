@@ -70,6 +70,8 @@ public class AuthServiceImpl implements AuthService {
     private final SysDeptMapper deptMapper;
     private final PasswordEncoder passwordEncoder;
     private final UserDetailsServiceImpl userDetailsService;
+    /** 安全告警通知（可选组件，实现位于 notification 模块的外发通道） */
+    private final org.springframework.beans.factory.ObjectProvider<com.equipcare.common.security.SecurityAlertNotifier> securityAlertNotifier;
 
     public AuthServiceImpl(AuthenticationManager authenticationManager,
                            JwtTokenProvider tokenProvider,
@@ -79,7 +81,8 @@ public class AuthServiceImpl implements AuthService {
                            SysPermissionMapper permissionMapper,
                            SysDeptMapper deptMapper,
                            PasswordEncoder passwordEncoder,
-                           UserDetailsServiceImpl userDetailsService) {
+                           UserDetailsServiceImpl userDetailsService,
+                           org.springframework.beans.factory.ObjectProvider<com.equipcare.common.security.SecurityAlertNotifier> securityAlertNotifier) {
         this.authenticationManager = authenticationManager;
         this.tokenProvider = tokenProvider;
         this.tokenStore = tokenStore;
@@ -89,6 +92,20 @@ public class AuthServiceImpl implements AuthService {
         this.deptMapper = deptMapper;
         this.passwordEncoder = passwordEncoder;
         this.userDetailsService = userDetailsService;
+        this.securityAlertNotifier = securityAlertNotifier;
+    }
+
+    /** 锁定告警：尽力而为，失败只记日志（安全告警不得影响登录主流程） */
+    private void notifyAccountLocked(String username, String clientIp, int maxFail) {
+        com.equipcare.common.security.SecurityAlertNotifier notifier = securityAlertNotifier.getIfAvailable();
+        if (notifier == null) {
+            return;
+        }
+        try {
+            notifier.onAccountLocked(username, clientIp, maxFail);
+        } catch (Exception e) {
+            log.warn("账号锁定安全告警发送失败 username={}", username, e);
+        }
     }
 
     @Override
@@ -113,6 +130,10 @@ public class AuthServiceImpl implements AuthService {
                     Duration.ofMinutes(securityProperties.getLockMinutes()));
             long remain = Math.max(0, securityProperties.getLoginMaxFail() - current);
             log.warn("登录失败 username={} ip={} 失败次数={}", username, clientIp, current);
+            if (remain == 0) {
+                // 刚跨过锁定阈值：发一次安全告警（企微/邮件，实现缺席时静默）
+                notifyAccountLocked(username, clientIp, securityProperties.getLoginMaxFail());
+            }
             throw new BizException(ResultCode.AUTH_BAD_CREDENTIALS,
                     remain > 0 ? "用户名或密码错误，还可尝试 " + remain + " 次" : "用户名或密码错误，账号已锁定");
         } catch (AuthenticationException ex) {

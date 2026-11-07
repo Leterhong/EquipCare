@@ -15,6 +15,16 @@ public class OutboundNotifyProperties {
 
     private final Wecom wecom = new Wecom();
     private final Mail mail = new Mail();
+    /** 安全告警收件人（逗号分隔，空则告警只走企微通道） */
+    private String securityEmail = "";
+
+    public String getSecurityEmail() {
+        return securityEmail;
+    }
+
+    public void setSecurityEmail(String securityEmail) {
+        this.securityEmail = securityEmail;
+    }
 
     public Wecom getWecom() {
         return wecom;
