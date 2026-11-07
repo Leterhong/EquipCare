@@ -32,7 +32,10 @@ public class UserDetailsServiceImpl implements UserDetailsService {
         }
         List<String> roles = userMapper.selectRoleCodes(user.getId());
         List<String> permissions = userMapper.selectPermCodes(user.getId());
-        return new LoginUser(user.getId(), user.getUsername(), user.getPassword(), user.getRealName(),
+        LoginUser loginUser = new LoginUser(user.getId(), user.getUsername(), user.getPassword(), user.getRealName(),
                 user.getDeptId(), user.getStatus(), roles, permissions);
+        // 多租户（第十期）：装载用户所属租户（所有既有用户 tenant_id=0，零功能变化）
+        loginUser.setTenantId(user.getTenantId());
+        return loginUser;
     }
 }

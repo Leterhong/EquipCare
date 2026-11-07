@@ -25,6 +25,8 @@ public class LoginUser implements UserDetails, Serializable {
 
     private String realName;
     private Long deptId;
+    /** 所属租户（0=平台预置，多租户基础设施第十期） */
+    private Long tenantId;
     private Integer status = 1;
     private List<String> roles = new ArrayList<>();
     private List<String> permissions = new ArrayList<>();
@@ -136,6 +138,14 @@ public class LoginUser implements UserDetails, Serializable {
 
     public void setStatus(Integer status) {
         this.status = status;
+    }
+
+    public Long getTenantId() {
+        return tenantId;
+    }
+
+    public void setTenantId(Long tenantId) {
+        this.tenantId = tenantId;
     }
 
     public List<String> getRoles() {

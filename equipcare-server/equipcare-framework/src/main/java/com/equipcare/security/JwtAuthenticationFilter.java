@@ -94,6 +94,14 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     new UsernamePasswordAuthenticationToken(loginUser, null, loginUser.getAuthorities());
             authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
             SecurityContextHolder.getContext().setAuthentication(authentication);
+            // 多租户（第十期）：行级隔离上下文随会话建立，请求结束必须清理（线程池复用）
+            com.equipcare.common.tenant.TenantContext.set(loginUser.getTenantId());
+            try {
+                chain.doFilter(request, response);
+            } finally {
+                com.equipcare.common.tenant.TenantContext.clear();
+            }
+            return;
         } catch (ExpiredJwtException ex) {
             request.setAttribute(ATTR_JWT_ERROR, JWT_ERROR_EXPIRED);
         } catch (JwtException | IllegalArgumentException | UsernameNotFoundException ex) {

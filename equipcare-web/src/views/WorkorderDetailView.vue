@@ -279,11 +279,11 @@ onUnmounted(() => offSse?.());
               {{ detail.repairStarted ? '维修过程记录' : '开始维修' }}
             </el-button>
             <el-button v-if="detail.status === 'PENDING_REVIEW' && canVerify"
-              @click="goLegacyPath(`/workorder/${id}/verify`)">
+              @click="router.push(`/workorder/${id}/verify`)">
               去验收
             </el-button>
             <el-button v-if="detail.status === 'COMPLETED' && canEvaluate && !detail.evaluated"
-              @click="goLegacyPath(`/workorder/${id}/evaluate`)">
+              @click="router.push(`/workorder/${id}/evaluate`)">
               评价本次服务
             </el-button>
           </div>

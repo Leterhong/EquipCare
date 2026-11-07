@@ -28,6 +28,8 @@ public class SysUser extends BaseEntity {
     private String email;
 
     private Long deptId;
+    /** 所属租户（0=平台预置/单租户模式，第十期多租户基础设施） */
+    private Long tenantId;
 
     private String avatar;
 

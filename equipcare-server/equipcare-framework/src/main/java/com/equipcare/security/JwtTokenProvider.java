@@ -63,6 +63,7 @@ public class JwtTokenProvider {
                 .id(jti)
                 .claim(CLAIM_USER_ID, user.getUserId())
                 .claim(CLAIM_REAL_NAME, user.getRealName())
+                .claim("tid", user.getTenantId() == null ? 0L : user.getTenantId())
                 .claim(CLAIM_TYPE, TYPE_ACCESS)
                 .issuedAt(Date.from(now))
                 .expiration(Date.from(expiry))
