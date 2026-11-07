@@ -16,7 +16,7 @@ const menus = ref<MenuNode[]>([]);
 const collapsed = ref(false);
 
 /** 已迁移到 Vue 的路由前缀（与 router/index.ts 保持一致） */
-const MIGRATED = ['/dashboard', '/workorder'];
+const MIGRATED = ['/dashboard', '/equipment', '/workorder'];
 
 const visibleMenus = computed(() => {
   const walk = (nodes: MenuNode[]): MenuNode[] =>

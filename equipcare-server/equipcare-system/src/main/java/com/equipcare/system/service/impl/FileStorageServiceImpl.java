@@ -40,6 +40,19 @@ import java.util.UUID;
 @Service
 public class FileStorageServiceImpl implements FileStorageService {
 
+    /** 扩展名 → 受控 Content-Type（渗透整改：不信任客户端提交的 MIME） */
+    private static final java.util.Map<String, String> SAFE_CONTENT_TYPES = java.util.Map.ofEntries(
+            java.util.Map.entry("jpg", "image/jpeg"),
+            java.util.Map.entry("jpeg", "image/jpeg"),
+            java.util.Map.entry("png", "image/png"),
+            java.util.Map.entry("gif", "image/gif"),
+            java.util.Map.entry("webp", "image/webp"),
+            java.util.Map.entry("pdf", "application/pdf"),
+            java.util.Map.entry("doc", "application/msword"),
+            java.util.Map.entry("docx", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"),
+            java.util.Map.entry("xls", "application/vnd.ms-excel"),
+            java.util.Map.entry("xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"),
+            java.util.Map.entry("mp4", "video/mp4"));
     private static final Logger log = LoggerFactory.getLogger(FileStorageServiceImpl.class);
     private static final DateTimeFormatter DAY_FORMATTER = DateTimeFormatter.ofPattern("yyyy/MM/dd");
 
@@ -93,13 +106,18 @@ public class FileStorageServiceImpl implements FileStorageService {
         }
 
         String relativePath = dayPath + "/" + storedName;
+
+        // 安全加固（渗透整改 P3）：contentType 不信任客户端提交值，按扩展名服务端重映射，
+        // 杜绝「jpg 扩展名 + text/html」组合在下载端被浏览器内联渲染的可能。
+        String safeContentType = SAFE_CONTENT_TYPES.getOrDefault(extension,
+                "application/octet-stream");
         SysFile entity = new SysFile();
         entity.setFileName(originalName);
         entity.setStoredName(storedName);
         entity.setFilePath(relativePath);
         entity.setFileUrl(properties.getUrlPrefix() + "/" + relativePath);
         entity.setFileSize(file.getSize());
-        entity.setContentType(file.getContentType());
+        entity.setContentType(safeContentType);
         entity.setMd5(md5);
         entity.setBizType(bizType);
         entity.setBizId(bizId);

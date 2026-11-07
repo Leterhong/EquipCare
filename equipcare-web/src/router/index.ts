@@ -16,6 +16,7 @@ export const router = createRouter({
       children: [
         { path: '', redirect: '/dashboard' },
         { path: 'dashboard', component: () => import('../views/DashboardView.vue'), meta: { title: '数据驾驶舱', perm: 'dashboard:view' } },
+        { path: 'equipment', component: () => import('../views/EquipmentListView.vue'), meta: { title: '设备台账', perm: 'asset:equipment:view' } },
         { path: 'workorder', component: () => import('../views/WorkorderListView.vue'), meta: { title: '维修工单', perm: 'wo:workorder:view' } },
       ],
     },
