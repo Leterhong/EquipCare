@@ -20,7 +20,7 @@ const collapsed = ref(false);
 const realtime = useRealtime();
 
 /** 已迁移到 Vue 的路由前缀（与 router/index.ts 保持一致） */
-const MIGRATED = ['/dashboard', '/equipment', '/workorder', '/inspect-task', '/inspect-anomaly', '/inspect-plan', '/inspect-template', '/inspect-template-new', '/inspect-template-edit', '/spare-part', '/health', '/messages', '/users', '/roles', '/audit-logs', '/workorder-new', '/tenants', '/workbench'];
+const MIGRATED = ['/dashboard', '/equipment', '/workorder', '/inspect-task', '/inspect-anomaly', '/inspect-plan', '/inspect-template', '/inspect-template-new', '/inspect-template-edit', '/spare-part', '/health', '/messages', '/users', '/roles', '/audit-logs', '/workorder-new', '/tenants', '/workbench', '/categories', '/equipment/location', '/sla/monitor', '/profile'];
 
 const visibleMenus = computed(() => {
   const walk = (nodes: MenuNode[]): MenuNode[] =>

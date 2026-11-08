@@ -45,6 +45,8 @@ export interface UserInfo {
   username: string;
   realName: string;
   deptName?: string;
+  phone?: string;
+  email?: string;
   roles: string[];
   permissions: string[];
 }
