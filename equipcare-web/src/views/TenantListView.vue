@@ -43,7 +43,7 @@ async function load() {
   }
 }
 
-async function toggle(row: TenantRow) {
+async function toggle(row: Record<string, any>) {
   const action = row.status === 1 ? '停用' : '启用';
   try {
     await ElMessageBox.confirm(
@@ -80,11 +80,11 @@ async function createTenant() {
 }
 
 const quotaVisible = ref(false);
-const quotaTarget = ref<TenantRow | null>(null);
+const quotaTarget = ref<Record<string, any> | null>(null);
 const quotaJson = ref('');
 const quotaSaving = ref(false);
 
-function openQuota(row: TenantRow) {
+function openQuota(row: Record<string, any>) {
   quotaTarget.value = row;
   quotaJson.value = row.quotaJson || '';
   quotaVisible.value = true;
@@ -163,7 +163,7 @@ onMounted(async () => {
             v-if="isAdmin && row.id !== 0"
             link
             :type="row.status === 1 ? 'danger' : 'success'"
-            @click="toggle(row as TenantRow)"
+            @click="toggle(row)"
           >
             {{ row.status === 1 ? '停用' : '启用' }}
           </el-button>

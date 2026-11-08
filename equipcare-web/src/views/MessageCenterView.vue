@@ -51,7 +51,7 @@ async function load() {
 
 const allRead = computed(() => rows.value.every((r) => r.readFlag === 1));
 
-async function markRead(row: MessageRow) {
+async function markRead(row: Record<string, any>) {
   if (row.readFlag === 1) return;
   await http.patch(`/api/system/messages/${row.id}/read`);
   row.readFlag = 1;
@@ -97,7 +97,7 @@ function switchTab(t: 'all' | 'unread') {
   load();
 }
 
-function rowClassName({ row }: { row: MessageRow }) {
+function rowClassName({ row }: { row: Record<string, any> }) {
   return row.readFlag === 0 ? 'unread-row' : '';
 }
 
@@ -153,7 +153,7 @@ onUnmounted(() => window.removeEventListener('ec:vue-message-new', onNewMessage)
       </el-table-column>
       <el-table-column label="操作" width="90" align="right">
         <template #default="{ row }">
-          <el-button v-if="row.readFlag === 0" link type="primary" @click="markRead(row as MessageRow)">标已读</el-button>
+          <el-button v-if="row.readFlag === 0" link type="primary" @click="markRead(row)">标已读</el-button>
           <span v-else style="color: #c0c8d4">已读</span>
         </template>
       </el-table-column>

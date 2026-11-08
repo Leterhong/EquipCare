@@ -47,7 +47,7 @@ function search() {
   load();
 }
 
-function openOp(type: 'in' | 'out', row: PartRow) {
+function openOp(type: 'in' | 'out', row: Record<string, any>) {
   opType.value = type;
   opForm.partId = row.id;
   opForm.partName = `${row.partName}（当前 ${row.currentStock ?? 0} ${row.unit || ''}）`;
@@ -79,7 +79,7 @@ async function submitOp() {
   }
 }
 
-function stockColor(row: PartRow) {
+function stockColor(row: Record<string, any>) {
   if (row.currentStock == null || row.safetyStock == null) return '#94a3b8';
   if (row.currentStock <= row.safetyStock) return '#dc2626';
   if (row.currentStock <= row.safetyStock * 1.5) return '#d97706';
@@ -107,7 +107,7 @@ onMounted(load);
       </el-table-column>
       <el-table-column label="当前库存" width="100" align="center">
         <template #default="{ row }">
-          <b :style="{ color: stockColor(row as PartRow) }">{{ row.currentStock ?? '—' }}{{ row.unit || '' }}</b>
+          <b :style="{ color: stockColor(row) }">{{ row.currentStock ?? '—' }}{{ row.unit || '' }}</b>
         </template>
       </el-table-column>
       <el-table-column prop="safetyStock" label="安全库存" width="90" align="center" />
@@ -123,8 +123,8 @@ onMounted(load);
       </el-table-column>
       <el-table-column label="操作" width="150" align="right">
         <template #default="{ row }">
-          <el-button link type="success" @click="openOp('in', row as PartRow)">入库</el-button>
-          <el-button link type="danger" @click="openOp('out', row as PartRow)">出库</el-button>
+          <el-button link type="success" @click="openOp('in', row)">入库</el-button>
+          <el-button link type="danger" @click="openOp('out', row)">出库</el-button>
         </template>
       </el-table-column>
     </el-table>
