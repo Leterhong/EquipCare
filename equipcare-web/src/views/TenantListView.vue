@@ -159,7 +159,6 @@ onMounted(async () => {
       <el-table-column label="操作" width="140" align="right">
         <template #default="{ row }">
           <el-button v-if="isAdmin && row.id !== 0" link type="primary" @click="openQuota(row)">配额</el-button>
-        <template #default="{ row }">
           <el-button
             v-if="isAdmin && row.id !== 0"
             link
@@ -168,7 +167,7 @@ onMounted(async () => {
           >
             {{ row.status === 1 ? '停用' : '启用' }}
           </el-button>
-          <span v-else-if="row.id === 0" style="color:#c0c8d4;font-size:12px">预置</span>
+          <span v-if="row.id === 0" style="color:#c0c8d4;font-size:12px">预置</span>
         </template>
       </el-table-column>
     </el-table>
