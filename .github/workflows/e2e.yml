@@ -38,6 +38,18 @@ jobs:
           for i in $(seq 1 40); do curl -sf http://127.0.0.1:8080/actuator/health && break; sleep 3; done
           curl -sf http://127.0.0.1:8080/actuator/health
 
+      - name: Prepare multi-tenant data (acme 租户 + 隔离样本)
+        run: |
+          docker exec -i mysql mysql -uroot -pci_root_pw --default-character-set=utf8mb4 equipcare <<'SQL'
+          SET SQL_MODE='NO_AUTO_VALUE_ON_ZERO';
+          INSERT IGNORE INTO sys_tenant (id, tenant_code, tenant_name, plan, status) VALUES (1, 'acme', 'ACME 制造', 'STANDARD', 1);
+          UPDATE sys_user SET tenant_id = 1 WHERE username = 'acmeadmin';
+          INSERT INTO eq_equipment (asset_no, equipment_name, category_id, status, tenant_id, version, deleted)
+          SELECT 'ACME-EQ-001', 'ACME 专属设备', c.id, 'IN_USE', 1, 0, 0
+            FROM (SELECT id FROM eq_category LIMIT 1) c
+           WHERE NOT EXISTS (SELECT 1 FROM eq_equipment WHERE asset_no = 'ACME-EQ-001');
+          SQL
+
       - name: Install Vue deps & Playwright
         working-directory: equipcare-web
         run: |

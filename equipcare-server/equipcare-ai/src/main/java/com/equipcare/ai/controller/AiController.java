@@ -1,5 +1,6 @@
 package com.equipcare.ai.controller;
 
+import com.equipcare.ai.audit.AiCallLogService;
 import com.equipcare.ai.client.OpenAiCompatClient;
 import com.equipcare.ai.service.AiDefectService;
 import com.equipcare.ai.service.AiDiagnosisService;
@@ -53,15 +54,17 @@ public class AiController {
     private final AiReportService reportService;
     private final AiDefectService defectService;
     private final AiStreamGuard streamGuard;
+    private final AiCallLogService callLogService;
 
     public AiController(AiDiagnosisService diagnosisService, AiDispatchService dispatchService,
                         AiReportService reportService, AiDefectService defectService,
-                        AiStreamGuard streamGuard) {
+                        AiStreamGuard streamGuard, AiCallLogService callLogService) {
         this.diagnosisService = diagnosisService;
         this.dispatchService = dispatchService;
         this.reportService = reportService;
         this.defectService = defectService;
         this.streamGuard = streamGuard;
+        this.callLogService = callLogService;
     }
 
     @Operation(summary = "AI 故障诊断（SSE 流式输出 Markdown）")
@@ -98,6 +101,7 @@ public class AiController {
         });
         emitter.onError(t -> cleanup.run());
 
+        long diagStart = System.currentTimeMillis();
         Thread worker = new Thread(() -> {
             try {
                 OpenAiCompatClient.StreamHandle handle = diagnosisService.diagnose(workOrderId,
@@ -122,6 +126,8 @@ public class AiController {
                                             // 客户端已断开
                                         }
                                     }
+                                    callLogService.record("DIAGNOSIS", workOrderId,
+                                            System.currentTimeMillis() - diagStart, "ERROR", error);
                                 },
                                 () -> {
                                     if (!finished.get()) {
@@ -132,6 +138,8 @@ public class AiController {
                                         }
                                         emitter.complete();
                                     }
+                                    callLogService.record("DIAGNOSIS", workOrderId,
+                                            System.currentTimeMillis() - diagStart, "SUCCESS", null);
                                 }));
                 handleRef.set(handle);
             } catch (Exception e) {
@@ -156,7 +164,21 @@ public class AiController {
     @PreAuthorize("hasAuthority('wo:workorder:dispatch')")
     @AuditLog(module = "AI副驾", action = "智能派单推荐")
     public Result<List<AiDispatchService.Suggestion>> dispatchSuggest(@PathVariable long workOrderId) {
-        return Result.ok(dispatchService.suggest(workOrderId));
+        long start = System.currentTimeMillis();
+        String status = "SUCCESS";
+        String errorMsg = null;
+        List<AiDispatchService.Suggestion> suggestions = List.of();
+        try {
+            suggestions = dispatchService.suggest(workOrderId);
+            return Result.ok(suggestions);
+        } catch (Exception e) {
+            status = "ERROR";
+            errorMsg = e.getMessage();
+            throw e;
+        } finally {
+            callLogService.record("DISPATCH", workOrderId,
+                    System.currentTimeMillis() - start, status, errorMsg);
+        }
     }
 
     @Operation(summary = "AI 生成维修报告（Markdown）")
@@ -164,7 +186,20 @@ public class AiController {
     @PreAuthorize("hasAuthority('wo:workorder:view')")
     @AuditLog(module = "AI副驾", action = "维修报告生成")
     public Result<Map<String, String>> report(@PathVariable long workOrderId) {
-        return Result.ok(Map.of("markdown", reportService.generate(workOrderId)));
+        long start = System.currentTimeMillis();
+        String status = "SUCCESS";
+        String errorMsg = null;
+        try {
+            String markdown = reportService.generate(workOrderId);
+            return Result.ok(Map.of("markdown", markdown));
+        } catch (Exception e) {
+            status = "ERROR";
+            errorMsg = e.getMessage();
+            throw e;
+        } finally {
+            callLogService.record("REPORT", workOrderId,
+                    System.currentTimeMillis() - start, status, errorMsg);
+        }
     }
 
     @Operation(summary = "巡检/报修拍照缺陷识别（多模态视觉）")
@@ -172,7 +207,20 @@ public class AiController {
     @PreAuthorize("hasAuthority('wo:workorder:view')")
     @AuditLog(module = "AI副驾", action = "缺陷识别")
     public Result<Map<String, String>> defectAnalyze(@RequestBody DefectAnalyzeRequest req) {
-        return Result.ok(Map.of("markdown", defectService.analyze(req.fileIds(), req.hint())));
+        long start = System.currentTimeMillis();
+        String status = "SUCCESS";
+        String errorMsg = null;
+        try {
+            String markdown = defectService.analyze(req.fileIds(), req.hint());
+            return Result.ok(Map.of("markdown", markdown));
+        } catch (Exception e) {
+            status = "ERROR";
+            errorMsg = e.getMessage();
+            throw e;
+        } finally {
+            callLogService.record("DEFECT", null,
+                    System.currentTimeMillis() - start, status, errorMsg);
+        }
     }
 
     /** 缺陷识别请求：现场照片附件 id（最多 4 张）+ 文字线索 */
