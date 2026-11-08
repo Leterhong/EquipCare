@@ -27,9 +27,6 @@
 > 🧩 **它同时是一套设备域业务框架**：模块化分层、事件总线、权限模型、审计/通知/实时推送
 > 等横切设施全部就位——空库启动、零演示数据，新业务模块按
 > [框架扩展指南](docs/14-框架扩展指南.md) 七步接入，依赖方向由 ArchUnit 在 CI 中强制。
->
-> 🌐 **在线介绍页**：仓库自带展示站源码（[website/](website/index.html)，含界面画廊 /
-> 架构图解 / AI 演示动画），仓库公开后一键部署到 GitHub Pages。
 
 ## 🏗️ 架构
 
@@ -121,55 +118,6 @@ EQUIPCARE_AI_MODEL=doubao-seed-1-6-251015
 
 重启后在任意工单详情页看到「AI 智能副驾」：⚡故障诊断（流式）/ ⚡AI 推荐维修人 / 📄 生成维修报告。
 **不配置则 AI 入口自动隐藏，系统所有功能不受影响。**
-
-## 🧪 质量保障
-
-| 测试 | 数量 | 覆盖 |
-|---|---|---|
-| 后端单元测试 | **134** | 状态机、健康分算法、JWT、Outbox 退避策略、AI 提示词、**架构守护（ArchUnit）** |
-| 前端 Vitest | **65** | 请求封装、鉴权、巡检执行、备件入库、工单状态、AI Markdown 渲染 |
-| 黑盒冒烟脚本 | 8 套 | 巡检→异常→工单→验收全闭环（`scripts/`，200+ 断言） |
-| 集成测试 | 9 个 IT | 全上下文启动（`mvn verify`，需 MySQL+Redis） |
-
-```bash
-mvn test                            # 后端全部测试（含架构守护）
-cd frontend-tests && npx vitest run # 前端测试
-```
-
-## 📂 仓库结构
-
-```
-EquipCare/
-├── docs/                        # 产品需求/架构设计/数据库/部署/测试报告/创新升级说明（12 份）
-├── equipcare-server/            # 全部代码（Maven 多模块，见其 README 获取深度开发文档）
-│   ├── equipcare-{common,system,framework,business,ai,admin}/
-│   ├── database/                # schema.sql(37表) / seed.sql / 幂等增量脚本
-│   ├── deploy/                  # nginx.conf / docker-init / env.example / backup.sh
-│   ├── scripts/                 # 黑盒冒烟与 UI 验证脚本（Python）
-│   └── frontend-tests/          # Vitest 前端测试
-└── .github/workflows/ci.yml     # 后端构建+测试 / 前端 Vitest 双流水线
-```
-
-## 🗺️ 路线图
-
-- [x] 设备台账 / 扫码巡检 / 七态工单 / SLA / 备件 / 健康分
-- [x] 事件驱动（事务性 Outbox）+ SSE 实时推送
-- [x] AI 副驾：诊断 / 智能派单 / 维修报告
-- [x] **Vue 3 + Vite + TS 前端重构**（新旧共存分批迁移）
-- [x] AI 深化：巡检拍照缺陷识别（多模态）、维修知识库 RAG
-- [x] 通知外发：企业微信 / 邮件（事件监听器已就位，即插即用）
-- [x] 预测性维护：MTBF/MTTR 趋势预警
-- [x] 多租户 SaaS 化
-- [ ] Vue 版页面继续分批迁移
-- [ ] 认证态 ZAP 深扫
-- [ ] 性能基线
-
-> 想参与？从 [CONTRIBUTING.md](CONTRIBUTING.md) 开始，路线图上的每一项都欢迎认领。
-
-## 🙌 谁在用 / 适合谁
-
-适合：工厂设备科、物业设施管理、实验室/医院后勤、连锁门店维保外包管理，
-以及需要一个**架构干净的 Spring Boot 模块化单体参考实现**的团队与学习者。
 
 ## 📄 License
 
