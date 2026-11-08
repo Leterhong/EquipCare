@@ -75,6 +75,8 @@ class TenantInfraTest {
         assertTrue(!handler.ignoreTable("eq_equipment"));
         // 大小写不敏感（表名大小写在不同数据库配置下不一致）
         assertTrue(handler.ignoreTable("SYS_DICT"));
+        // 租户主表自身不做行级过滤（第二步建表，无 tenant_id 列）
+        assertTrue(handler.ignoreTable("sys_tenant"));
     }
 
     @Test
@@ -88,6 +90,6 @@ class TenantInfraTest {
     void 共享清单防漂移() {
         // 10-multi-tenant-step1.sql 的表清单不含任何共享表
         Set<String> shared = MybatisPlusConfig.TENANT_SHARED_TABLES;
-        assertEquals(5, shared.size());
+        assertEquals(6, shared.size());
     }
 }

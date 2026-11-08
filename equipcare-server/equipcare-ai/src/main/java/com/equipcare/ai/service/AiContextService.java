@@ -3,6 +3,9 @@ package com.equipcare.ai.service;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.equipcare.ai.client.OpenAiCompatClient;
 import com.equipcare.common.exception.BizException;
+import com.equipcare.common.security.LoginUser;
+import com.equipcare.common.security.SecurityUtils;
+import com.equipcare.workorder.WorkOrderAccessPolicy;
 import com.equipcare.analytics.entity.EqHealthSnapshot;
 import com.equipcare.analytics.mapper.EqHealthSnapshotMapper;
 import com.equipcare.asset.entity.EqCategory;
@@ -332,6 +335,13 @@ public class AiContextService {
         WoWorkOrder order = orderMapper.selectById(workOrderId);
         if (order == null) {
             throw BizException.notFound("工单");
+        }
+        // 渗透整改第二轮（AI IDOR）：AI 端点与工单详情数据范围对齐——
+        // SELF 角色仅本单相关人员可触发 AI 能力，防止遍历工单 id 借 AI 读取他人工单内容
+        LoginUser loginUser = SecurityUtils.getLoginUser();
+        if (!WorkOrderAccessPolicy.isVisible(order, loginUser.getUserId(),
+                new java.util.HashSet<>(loginUser.getRoles()))) {
+            throw BizException.forbidden("无权对该工单使用 AI 能力");
         }
         return order;
     }

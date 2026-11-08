@@ -38,7 +38,9 @@ public class MybatisPlusConfig {
      * 与 database/10-multi-tenant-step1.sql 中「不加列清单」一一对应，改一处必须同步另一处。
      */
     public static final Set<String> TENANT_SHARED_TABLES = Set.of(
-            "sys_permission", "sys_role_permission", "sys_dict", "sys_dict_item", "sys_job_lock");
+            "sys_permission", "sys_role_permission", "sys_dict", "sys_dict_item", "sys_job_lock",
+            // 租户主表自身：行级过滤对租户表无意义，且表无 tenant_id 列（第二步建表）
+            "sys_tenant");
 
     @Bean
     public TenantLineHandler tenantLineHandler() {

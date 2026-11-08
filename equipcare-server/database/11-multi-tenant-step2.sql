@@ -20,9 +20,13 @@ CREATE TABLE IF NOT EXISTS sys_tenant (
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci
   COMMENT = '租户主表（SaaS 化第二步：登录路由与配额基础）';
 
--- 平台预置租户（id=0 与全部既有数据 tenant_id=0 对应；AUTO_INCREMENT 表允许显式 0）
+-- 平台预置租户（id=0 与全部既有数据 tenant_id=0 对应）
+-- 注意：必须带 NO_AUTO_VALUE_ON_ZERO，否则 AUTO_INCREMENT 会把 0 自增为 1
+SET @old_sql_mode = @@SQL_MODE;
+SET SQL_MODE='NO_AUTO_VALUE_ON_ZERO';
 INSERT IGNORE INTO sys_tenant (id, tenant_code, tenant_name, plan, status)
 VALUES (0, 'platform', '平台预置租户', 'STANDARD', 1);
+SET SQL_MODE=@old_sql_mode;
 
 -- 登录查询索引（用户名在租户内唯一——多租户开放注册后约束迁移到 (tenant_id, username)）
 SET @idx_exists = (SELECT COUNT(*) FROM information_schema.STATISTICS
