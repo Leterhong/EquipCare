@@ -4,8 +4,6 @@
 
 **新一代开源设备巡检维保平台 · Event-Driven CMMS**
 
-*扫码巡检 · 七态工单状态机 · SLA 预警 · 事务性 Outbox · SSE 实时推送 · AI 维修副驾*
-
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Java](https://img.shields.io/badge/Java-17-orange.svg)](https://adoptium.net/)
 [![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.5.x-6DB33F.svg)](https://spring.io/projects/spring-boot)
@@ -32,42 +30,6 @@
 >
 > 🌐 **在线介绍页**：仓库自带展示站源码（[website/](website/index.html)，含界面画廊 /
 > 架构图解 / AI 演示动画），仓库公开后一键部署到 GitHub Pages。
-
-## ✨ 核心特性
-
-| 领域 | 能力 |
-|---|---|
-| 📟 **设备台账** | 一物一码（服务端 ZXing 二维码）、分类/位置树、生命周期状态机、附件与照片留证 |
-| 🔍 **扫码巡检** | 模板 → 计划 → 定时任务生成（含停机回补）→ 手机扫码执行 → 异常自动转工单；巡检日历与统计 |
-| 🎫 **维修工单** | 七态状态机 × CAS 乐观锁（并发冲突 409）、动作白名单按钮、派单/拒接/转派/强制转派、维修前后留证、验收与评价 |
-| ⏰ **SLA 预警** | 按等级动态计算响应/修复时限，WARN→OVERDUE 分级推进，当日去重的升级通知 |
-| 📦 **备件库存** | 出入库流水（只插入表）、工单领用与退料、安全库存预警、备件成本进工单 |
-| 💚 **健康分** | 规则可解释的设备健康评分（工单/超时/异常/逾期多维扣分 + 奖励项），每日快照与趋势 |
-| ⚡ **事件驱动** | 领域事件经**事务性 Outbox**（`event_outbox`）可靠投递：与业务同事务提交、崩溃自动补投、指数退避、判死告警——架构方向由 ArchUnit 测试守护 |
-| 📡 **实时推送** | SSE 通道（30 秒一次性票据鉴权）：新消息、工单流转、SLA/库存/巡检异常**秒级直达**，断线自动退避重连并回退轮询 |
-| 🤖 **AI 副驾** | 故障诊断（流式 Markdown：根因/步骤/备件/安全事项）、智能派单 TOP3（算法预打分 + LLM 理由）、维修报告一键生成；OpenAI 兼容协议可接豆包/智谱/DeepSeek，**默认关闭、fail-open** |
-| 🌙 **现代前端** | 原生 ES Module 零构建依赖、28 个业务页面、暗色模式、PWA 离线外壳、摄像头扫码（BarcodeDetector） |
-
-## 📸 界面预览
-
-| 运维驾驶舱 | 设备台账 |
-|---|---|
-| ![dashboard](equipcare-server/docs/screenshots/phase10/20-dashboard-top.png) | ![equipment](equipcare-server/docs/screenshots/phase10/02-dashboard.png) |
-| **工单看板（七态 × SLA 倒计时）** | **巡检日历** |
-| ![board](equipcare-server/docs/screenshots/phase10/51-workorder-board.png) | ![calendar](equipcare-server/docs/screenshots/phase10/44-inspect-calendar-page.png) |
-| **工单详情（全生命周期）** | **移动端扫码档案** |
-| ![detail](equipcare-server/docs/screenshots/phase10/52-workorder-detail.png) | ![mobile](equipcare-server/docs/screenshots/phase10/60-mobile-scan.png) |
-
-<details>
-<summary><b>更多截图（144 张全量 UI 存档）</b></summary>
-
-| | |
-|---|---|
-| ![nav](equipcare-server/docs/screenshots/phase10/10-nav-tree.png) | ![mobile-task](equipcare-server/docs/screenshots/phase10/61-mobile-inspect-task.png) |
-| ![mobile-exec](equipcare-server/docs/screenshots/phase10/62-mobile-inspect-execute.png) | ![mobile-wo](equipcare-server/docs/screenshots/phase10/64-mobile-workorder.png) |
-
-完整存档见 [`equipcare-server/docs/screenshots/`](equipcare-server/docs/screenshots/)。
-</details>
 
 ## 🏗️ 架构
 
@@ -140,7 +102,7 @@ docker compose exec backend java -jar /app/app.jar \
 ```bash
 # 前置：JDK 17+ / MySQL 8 / Redis，执行 database/schema.sql + seed.sql
 mysql -u root -p equipcare < database/schema.sql
-mysql -u root -p equipcare < database/seed.sql      # 演示基础数据（无账号）
+mysql -u root -p equipcare < database/seed.sql      # 系统基础数据（无账号）
 
 mvn spring-boot:run -pl equipcare-admin             # dev profile，改前端刷新即生效
 ```
@@ -193,11 +155,14 @@ EquipCare/
 - [x] 设备台账 / 扫码巡检 / 七态工单 / SLA / 备件 / 健康分
 - [x] 事件驱动（事务性 Outbox）+ SSE 实时推送
 - [x] AI 副驾：诊断 / 智能派单 / 维修报告
-- [ ] **Vue 3 + Vite + TS 前端重构**（新旧共存分批迁移）
-- [ ] AI 深化：巡检拍照缺陷识别（多模态）、维修知识库 RAG
-- [ ] 通知外发：企业微信 / 邮件（事件监听器已就位，即插即用）
-- [ ] 预测性维护：MTBF/MTTR 趋势预警
-- [ ] 多租户 SaaS 化
+- [x] **Vue 3 + Vite + TS 前端重构**（新旧共存分批迁移）
+- [x] AI 深化：巡检拍照缺陷识别（多模态）、维修知识库 RAG
+- [x] 通知外发：企业微信 / 邮件（事件监听器已就位，即插即用）
+- [x] 预测性维护：MTBF/MTTR 趋势预警
+- [x] 多租户 SaaS 化
+- [ ] Vue 版页面继续分批迁移
+- [ ] 认证态 ZAP 深扫
+- [ ] 性能基线
 
 > 想参与？从 [CONTRIBUTING.md](CONTRIBUTING.md) 开始，路线图上的每一项都欢迎认领。
 
