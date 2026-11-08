@@ -1,6 +1,7 @@
 package com.equipcare.outbox;
 
 import com.equipcare.common.event.OutboxEventArrived;
+import com.equipcare.common.security.SecurityAlertNotifier;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -42,14 +43,18 @@ public class OutboxDispatcher {
     private final OutboxMessageMapper outboxMapper;
     private final ApplicationEventPublisher eventPublisher;
     private final ObjectMapper objectMapper;
+    /** 死信告警（可选组件，实现位于 notification 外发通道） */
+    private final org.springframework.beans.factory.ObjectProvider<SecurityAlertNotifier> alertNotifier;
     private final String workerId;
 
     public OutboxDispatcher(OutboxMessageMapper outboxMapper,
                             ApplicationEventPublisher eventPublisher,
-                            ObjectMapper objectMapper) {
+                            ObjectMapper objectMapper,
+                            org.springframework.beans.factory.ObjectProvider<SecurityAlertNotifier> alertNotifier) {
         this.outboxMapper = outboxMapper;
         this.eventPublisher = eventPublisher;
         this.objectMapper = objectMapper;
+        this.alertNotifier = alertNotifier;
         this.workerId = resolveWorkerId();
     }
 
@@ -99,6 +104,7 @@ public class OutboxDispatcher {
                 outboxMapper.markRetryOrFail(row.getId(), "DEAD", LocalDateTime.now());
                 log.error("领域事件投递判 DEAD（需人工介入）outboxId={} type={} attempt={}",
                         row.getId(), row.getEventType(), attempt, e);
+                notifyDead(row, e);
             } else {
                 long delay = OutboxBackoffPolicy.nextDelayMs(attempt);
                 outboxMapper.markRetryOrFail(row.getId(), "PENDING",
@@ -106,6 +112,19 @@ public class OutboxDispatcher {
                 log.warn("领域事件投递失败，{}ms 后重试 outboxId={} type={} attempt={}",
                         delay, row.getId(), row.getEventType(), attempt, e);
             }
+        }
+    }
+
+    /** 死信告警：经 SecurityAlertNotifier 外发（企微/邮件），实现缺席或失败静默 */
+    private void notifyDead(OutboxMessage row, Exception cause) {
+        try {
+            SecurityAlertNotifier notifier = alertNotifier.getIfAvailable();
+            if (notifier != null) {
+                notifier.onDeadLetter(row.getId(), row.getEventType(),
+                        cause == null ? "" : String.valueOf(cause.getMessage()));
+            }
+        } catch (Exception ignored) {
+            // 告警失败不影响投递主流程
         }
     }
 

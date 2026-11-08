@@ -38,6 +38,79 @@ const legacyLink = computed(() => {
   return `${location.protocol}//${location.hostname}:8080/app.html`;
 });
 
+/* ---------------- 全局搜索（聚合设备/工单/备件，对齐旧版） ---------------- */
+const searchKeyword = ref('');
+const searchVisible = ref(false);
+const searchBusy = ref(false);
+const searchResults = ref<{ group: string; items: { label: string; sub: string; path: string }[] }[]>([]);
+let searchTimer: ReturnType<typeof setTimeout> | null = null;
+
+interface SearchItem { label: string; sub: string; path: string }
+interface SearchGroup { group: string; items: SearchItem[] }
+
+function onSearchInput() {
+  searchVisible.value = searchKeyword.value.trim().length > 0;
+  if (searchTimer) clearTimeout(searchTimer);
+  searchTimer = setTimeout(() => {
+    if (searchKeyword.value.trim()) void runSearch();
+  }, 350);
+}
+
+function onSearchEnter() {
+  if (searchTimer) clearTimeout(searchTimer);
+  if (searchKeyword.value.trim()) void runSearch();
+}
+
+async function runSearch() {
+  const text = searchKeyword.value.trim();
+  if (!text) return;
+  searchBusy.value = true;
+  const groups: SearchGroup[] = [];
+  const tasks: Promise<unknown>[] = [];
+  if (auth.can('asset:equipment:view')) {
+    tasks.push(http.get<never, { records: { id: number; equipmentName?: string; assetNo?: string }[] }>(
+      '/api/asset/equipment', { params: { pageNum: 1, pageSize: 5, keyword: text } },
+    ).then((page) => groups.push({
+      group: '设备',
+      items: (page.records || []).map((r) => ({
+        label: r.equipmentName || '未命名设备', sub: r.assetNo || '', path: `/equipment/${r.id}`,
+      })),
+    })));
+  }
+  if (auth.can('wo:workorder:view')) {
+    tasks.push(http.get<never, { records: { id: number; title?: string; orderNo?: string }[] }>(
+      '/api/workorder', { params: { pageNum: 1, pageSize: 5, keyword: text } },
+    ).then((page) => groups.push({
+      group: '维修工单',
+      items: (page.records || []).map((r) => ({
+        label: r.title || `工单 ${r.orderNo || r.id}`, sub: r.orderNo || '', path: `/workorder/${r.id}`,
+      })),
+    })));
+  }
+  if (auth.can('spare:part:view')) {
+    tasks.push(http.get<never, { records: { partName?: string; partNo?: string }[] }>(
+      '/api/inventory/parts', { params: { pageNum: 1, pageSize: 5, keyword: text } },
+    ).then((page) => groups.push({
+      group: '备件',
+      items: (page.records || []).map((r) => ({
+        label: r.partName || '未命名备件', sub: r.partNo || '', path: '/spare-part',
+      })),
+    })));
+  }
+  const settled = await Promise.allSettled(tasks);
+  for (const s of settled) {
+    if (s.status === 'rejected') {
+      // 单域失败（无权限/网络）不阻塞其他域
+    }
+  }
+  searchResults.value = groups.filter((g) => g.items.length);
+  searchBusy.value = false;
+}
+
+function goSearchHit(path: string) {
+  router.push(path);
+}
+
 function logout() {
   http.post('/api/auth/logout', {}).catch(() => {});
   stopRealtime();
@@ -108,6 +181,34 @@ onMounted(() => {
         <el-button text @click="collapsed = !collapsed">{{ collapsed ? '☰' : '⟨' }}</el-button>
         <b class="title">{{ route.meta.title || '巡维云' }}</b>
         <div class="spacer" />
+        <el-popover v-model:visible="searchVisible" placement="bottom-end" :width="380" trigger="manual">
+          <template #reference>
+            <el-input
+              v-model="searchKeyword"
+              placeholder="搜索设备 / 工单 / 备件"
+              style="width: 220px"
+              clearable
+              @input="onSearchInput"
+              @focus="onSearchInput"
+              @keyup.enter="onSearchEnter"
+            />
+          </template>
+          <div v-if="searchBusy" style="text-align:center;color:#94a3b8">搜索中…</div>
+          <div v-else-if="!searchResults.length" style="text-align:center;color:#94a3b8;padding:8px">无匹配结果</div>
+          <div v-else>
+            <div v-for="group in searchResults" :key="group.group" style="margin-bottom:8px">
+              <div style="font-size:12px;color:#94a3b8;margin-bottom:4px">{{ group.group }}</div>
+              <div
+                v-for="item in group.items"
+                :key="item.path + item.label"
+                class="search-hit"
+                @click="goSearchHit(item.path); searchVisible = false"
+              >
+                {{ item.label }} <span class="hit-sub">{{ item.sub }}</span>
+              </div>
+            </div>
+          </div>
+        </el-popover>
         <el-badge :value="realtime.state.unread" :hidden="!realtime.state.unread" :max="99">
           <el-button text @click="router.push('/messages')">🔔</el-button>
         </el-badge>
@@ -166,6 +267,9 @@ onMounted(() => {
 .title { font-size: 15.5px; color: #263445; }
 .spacer { flex: 1; }
 .user { display: flex; align-items: center; gap: 8px; cursor: pointer; color: #263445; }
+.search-hit { padding: 6px 8px; border-radius: 6px; cursor: pointer; font-size: 13px; }
+.search-hit:hover { background: #f5f7fa; }
+.hit-sub { color: #94a3b8; font-size: 12px; margin-left: 6px; font-family: ui-monospace, Menlo, Consolas, monospace; }
 .title-row-right { display: flex; align-items: center; gap: 10px; }
 .main { background: #f5f7fa; }
 </style>

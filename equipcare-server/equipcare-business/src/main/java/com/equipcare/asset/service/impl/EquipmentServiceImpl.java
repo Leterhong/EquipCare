@@ -69,6 +69,7 @@ public class EquipmentServiceImpl implements EquipmentService {
     private final EquipmentFileService fileService;
     private final EquipmentHistoryService historyService;
     private final QrCodeService qrCodeService;
+    private final com.equipcare.system.service.TenantQuotaService tenantQuotaService;
 
     @Value("${equipcare.asset.scan-url-prefix:/m/scan.html}")
     private String scanUrlPrefix;
@@ -84,7 +85,9 @@ public class EquipmentServiceImpl implements EquipmentService {
     public EquipmentServiceImpl(EqEquipmentMapper equipmentMapper, EqCategoryMapper categoryMapper,
                                EqLocationMapper locationMapper, SysUserMapper userMapper,
                                SysDeptMapper deptMapper, EquipmentFileService fileService,
-                               EquipmentHistoryService historyService, QrCodeService qrCodeService) {
+                               EquipmentHistoryService historyService, QrCodeService qrCodeService,
+            com.equipcare.system.service.TenantQuotaService tenantQuotaService) {
+        this.tenantQuotaService = tenantQuotaService;
         this.equipmentMapper = equipmentMapper;
         this.categoryMapper = categoryMapper;
         this.locationMapper = locationMapper;
@@ -173,6 +176,11 @@ public class EquipmentServiceImpl implements EquipmentService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public Long save(EquipmentSaveDTO dto) {
+        // 多租户配额（第十期第三步）：新建设备前校验所属租户配额上限（编辑不校验）
+        if (dto.getId() == null) {
+            Long tid = com.equipcare.common.tenant.TenantContext.get();
+            tenantQuotaService.checkEquipmentQuota(tid, equipmentCount(tid));
+        }
         EqCategory category = categoryMapper.selectById(dto.getCategoryId());
         if (category == null) {
             throw BizException.notFound("设备类别");
@@ -440,5 +448,16 @@ public class EquipmentServiceImpl implements EquipmentService {
             }
         }
         return status;
+    }
+
+    /** 当前租户设备数（配额校验用；租户上下文缺省按 0 处理——平台预置不受限） */
+    private long equipmentCount(Long tenantId) {
+        if (tenantId == null || tenantId == 0L) {
+            return 0L;
+        }
+        return equipmentMapper.selectCount(
+                com.baomidou.mybatisplus.core.toolkit.Wrappers.<com.equipcare.asset.entity.EqEquipment>lambdaQuery()
+                        .eq(com.equipcare.asset.entity.EqEquipment::getTenantId, tenantId)
+                        .eq(com.equipcare.asset.entity.EqEquipment::getDeleted, 0));
     }
 }

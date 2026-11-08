@@ -35,12 +35,37 @@ public class SecurityAlertNotifierImpl implements SecurityAlertNotifier {
     private final OutboundNotifyProperties props;
     /** 节流：username → 上次告警时间戳 */
     private final Map<String, AtomicLong> lastAlertAt = new ConcurrentHashMap<>();
+    /** 死信告警节流：eventType → 上次告警时间戳 */
+    private final Map<String, AtomicLong> lastDeadAlert = new ConcurrentHashMap<>();
 
     public SecurityAlertNotifierImpl(WeComWebhookNotifier wecom, EmailNotifier email,
                                      OutboundNotifyProperties props) {
         this.wecom = wecom;
         this.email = email;
         this.props = props;
+    }
+
+    @Override
+    public void onDeadLetter(Long outboxId, String eventType, String cause) {
+        // 同类死信 1 小时限流（死信通常成批出现）
+        long now = System.currentTimeMillis();
+        AtomicLong last = lastDeadAlert.computeIfAbsent(eventType, k -> new AtomicLong());
+        if (now - last.get() < 60 * 60 * 1000L) {
+            return;
+        }
+        last.set(now);
+        String subject = "安全告警 · 领域事件投递判死（" + eventType + "）";
+        String content = "Outbox 事件 " + outboxId + "（" + eventType + "）重试超限已判 DEAD，"
+                + "需人工介入排查 event_outbox 表。\n失败原因：" + (cause == null ? "未知" : cause);
+        if (wecom.enabled()) {
+            wecom.sendMarkdown("**安全告警 · Outbox 死信**\n" + content);
+        }
+        if (email.enabled() && props.getSecurityEmail() != null && !props.getSecurityEmail().isBlank()) {
+            for (String to : props.getSecurityEmail().split(",")) {
+                email.send(to.trim(), subject, content);
+            }
+        }
+        log.warn("Outbox 死信告警已发出 outboxId={} type={}", outboxId, eventType);
     }
 
     @Override

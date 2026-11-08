@@ -28,6 +28,8 @@ public class EqEquipment extends BaseEntity {
     private Long locationId;
 
     private Long deptId;
+    /** 所属租户（0=平台预置，多租户基础设施第十期） */
+    private Long tenantId;
 
     private String brand;
 

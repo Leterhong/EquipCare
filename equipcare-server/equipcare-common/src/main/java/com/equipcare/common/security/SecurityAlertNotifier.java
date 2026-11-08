@@ -20,4 +20,13 @@ public interface SecurityAlertNotifier {
      * @param maxFail  锁定阈值
      */
     void onAccountLocked(String username, String clientIp, int maxFail);
+
+    /**
+     * Outbox 死信告警：领域事件重试超限判死，需人工介入。
+     *
+     * @param outboxId 死信事件主键
+     * @param eventType 事件类型全限定名
+     * @param cause 最终失败原因摘要
+     */
+    void onDeadLetter(Long outboxId, String eventType, String cause);
 }
