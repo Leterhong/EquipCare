@@ -18,7 +18,7 @@ const collapsed = ref(false);
 const realtime = useRealtime();
 
 /** 已迁移到 Vue 的路由前缀（与 router/index.ts 保持一致） */
-const MIGRATED = ['/dashboard', '/equipment', '/workorder', '/inspect-task', '/inspect-anomaly', '/inspect-plan', '/inspect-template', '/inspect-template-new', '/inspect-template-edit', '/spare-part', '/health', '/messages', '/users', '/roles', '/audit-logs', '/workorder-new', '/tenants'];
+const MIGRATED = ['/dashboard', '/equipment', '/workorder', '/inspect-task', '/inspect-anomaly', '/inspect-plan', '/inspect-template', '/inspect-template-new', '/inspect-template-edit', '/spare-part', '/health', '/messages', '/users', '/roles', '/audit-logs', '/workorder-new', '/tenants', '/workbench'];
 
 const visibleMenus = computed(() => {
   const walk = (nodes: MenuNode[]): MenuNode[] =>
@@ -181,7 +181,7 @@ onMounted(() => {
         <el-button text @click="collapsed = !collapsed">{{ collapsed ? '☰' : '⟨' }}</el-button>
         <b class="title">{{ route.meta.title || '巡维云' }}</b>
         <div class="spacer" />
-        <el-popover v-model:visible="searchVisible" placement="bottom-end" :width="380" trigger="manual">
+        <el-popover :visible="searchVisible" placement="bottom-end" :width="380">
           <template #reference>
             <el-input
               v-model="searchKeyword"

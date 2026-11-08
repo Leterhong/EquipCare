@@ -26,6 +26,7 @@ public class TenantQuotaService {
     private static final Logger log = LoggerFactory.getLogger(TenantQuotaService.class);
 
     public static final String KEY_MAX_EQUIPMENT = "maxEquipment";
+    public static final String KEY_MAX_STORAGE_MB = "maxStorageMb";
 
     private final SysTenantMapper tenantMapper;
     private final ObjectMapper objectMapper;
@@ -67,6 +68,32 @@ public class TenantQuotaService {
         } catch (Exception e) {
             log.warn("租户配额解析失败 tenantId={} key={}", tenantId, key, e);
             return null;
+        }
+    }
+
+    private com.equipcare.system.mapper.SysFileMapper fileMapper;
+
+    public void setFileMapper(com.equipcare.system.mapper.SysFileMapper fileMapper) {
+        this.fileMapper = fileMapper;
+    }
+
+    /**
+     * 存储配额校验：租户已用字节 + 新文件大小 ≤ maxStorageMb（MB）。
+     * 上传前调用；未配置配额或平台预置租户不限制。
+     *
+     * @param incomingBytes 本次上传的总字节数
+     */
+    public void checkStorageQuota(Long tenantId, long incomingBytes) {
+        Long maxMb = quotaValue(tenantId, KEY_MAX_STORAGE_MB);
+        if (maxMb == null || maxMb <= 0 || fileMapper == null) {
+            return;
+        }
+        long usedBytes = fileMapper.sumFileSize();
+        long limitBytes = maxMb * 1024L * 1024L;
+        if (usedBytes + incomingBytes > limitBytes) {
+            throw BizException.forbidden(String.format(
+                    "已达租户存储配额上限（已用 %.1f MB / 上限 %d MB），请联系平台方扩容",
+                    usedBytes / 1024.0 / 1024.0, maxMb));
         }
     }
 

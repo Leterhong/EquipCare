@@ -61,10 +61,13 @@ public class FileController {
 
     private final FileStorageService fileStorageService;
     private final FileStorageProperties properties;
+    private final com.equipcare.system.service.TenantQuotaService tenantQuotaService;
 
-    public FileController(FileStorageService fileStorageService, FileStorageProperties properties) {
+    public FileController(FileStorageService fileStorageService, FileStorageProperties properties,
+                          com.equipcare.system.service.TenantQuotaService tenantQuotaService) {
         this.fileStorageService = fileStorageService;
         this.properties = properties;
+        this.tenantQuotaService = tenantQuotaService;
     }
 
     @Operation(summary = "上传文件", description = "白名单：jpg/jpeg/png/pdf/docx/xlsx，单文件不超过 10MB；bizType 须为 EQUIPMENT/INSPECT/WORK_ORDER 且持对应业务权限")
@@ -74,7 +77,11 @@ public class FileController {
                                  @RequestParam(value = "bizType", required = false) String bizType,
                                  @RequestParam(value = "bizId", required = false) Long bizId) {
         requireUploadPermission(bizType);
-        return Result.ok(fileStorageService.store(file, bizType, bizId));
+
+        // 多租户存储配额（第十期第三步）：按登录人租户校验已用存储 + 本次文件大小
+        LoginUser uploadUser = SecurityUtils.getLoginUser();
+        long incoming = file == null || file.isEmpty() ? 0 : file.getSize();
+        tenantQuotaService.checkStorageQuota(uploadUser.getTenantId(), incoming);        return Result.ok(fileStorageService.store(file, bizType, bizId));
     }
 
     @Operation(summary = "下载/预览文件", description = "上传人/管理员/所属业务域持查看权限者可下载；校验路径防目录穿越")
