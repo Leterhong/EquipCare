@@ -1,9 +1,11 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useAuthStore, type MenuNode } from '../stores/auth';
 import { http } from '../api/http';
 import { resetRealtime, startRealtime, stopRealtime, useRealtime } from '../composables/useRealtime';
+import { ElNotification } from 'element-plus';
+import { messageRoute, msgTypeLabel } from '../composables/messageRoute';
 
 /**
  * 布局壳：服务端菜单（/api/auth/menus）按树渲染 el-menu；
@@ -111,6 +113,38 @@ function goSearchHit(path: string) {
   router.push(path);
 }
 
+/* ---------------- 铃铛：最近未读 + 桌面通知 + 标签角标 ---------------- */
+const bellVisible = ref(false);
+const recentUnread = ref<{ id: number; title?: string; msgType?: string; createTime?: string }[]>([]);
+
+async function loadRecentUnread() {
+  try {
+    const page = await http.get('/api/system/messages', {
+      params: { pageNum: 1, pageSize: 5, readFlag: 0 },
+    }) as { records?: { id: number; title?: string; msgType?: string; createTime?: string }[] };
+    recentUnread.value = page.records || [];
+  } catch {
+    recentUnread.value = [];
+  }
+}
+
+function bellClick() {
+  bellVisible.value = !bellVisible.value;
+  if (bellVisible.value) void loadRecentUnread();
+}
+
+function openBellMessage(m: { id: number; bizType?: string; bizId?: number }) {
+  http.patch('/api/system/messages/' + m.id + '/read').catch(() => {});
+  realtime.state.unread = Math.max(0, realtime.state.unread - 1);
+  const path = messageRoute(m.bizType, m.bizId);
+  if (path) router.push(path);
+  else void loadRecentUnread();
+}
+
+watch(() => realtime.state.unread, (n) => {
+  document.title = n > 0 ? '(' + n + ') 巡维云 EquipCare' : '巡维云 EquipCare';
+});
+
 function logout() {
   http.post('/api/auth/logout', {}).catch(() => {});
   stopRealtime();
@@ -120,9 +154,17 @@ function logout() {
 }
 
 /** 新消息到达：铃铛计数即时刷新（SSE message:new 事件） */
-function onRealtime(e: CustomEvent<{ type: string }>) {
+function onRealtime(e: CustomEvent<{ type: string; data?: Record<string, unknown> }>) {
   if (e.detail?.type === 'message:new') {
     void realtime.refreshUnread();
+    const d = (e.detail.data || {}) as { title?: string };
+    ElNotification({
+      title: '新消息',
+      message: d.title || '您有一条新消息',
+      type: 'info',
+      duration: 4500,
+      onClick: () => router.push('/messages'),
+    });
     window.dispatchEvent(new CustomEvent('ec:vue-message-new'));
   }
 }
@@ -209,9 +251,23 @@ onMounted(() => {
             </div>
           </div>
         </el-popover>
-        <el-badge :value="realtime.state.unread" :hidden="!realtime.state.unread" :max="99">
-          <el-button text @click="router.push('/messages')">🔔</el-button>
-        </el-badge>
+        <el-popover placement="bottom-end" :width="340">
+          <template #reference>
+            <el-badge :value="realtime.state.unread" :hidden="!realtime.state.unread" :max="99">
+              <el-button text @click="bellClick">🔔</el-button>
+            </el-badge>
+          </template>
+          <div style="max-height: 320px; overflow-y: auto">
+            <div v-if="!recentUnread.length" style="text-align:center;color:#94a3b8;padding:12px">暂无未读消息</div>
+            <div v-for="m in recentUnread" :key="m.id" class="bell-item" @click="openBellMessage(m)">
+              <div style="font-weight:600">{{ m.title }}</div>
+              <div class="bell-sub">{{ msgTypeLabel(m.msgType) }} · {{ (m.createTime || '').replace('T', ' ').slice(0, 16) }}</div>
+            </div>
+          </div>
+          <div style="text-align:center; padding: 8px 0 0; border-top: 1px solid var(--el-border-color-lighter)">
+            <el-button link type="primary" @click="router.push('/messages')">查看全部消息</el-button>
+          </div>
+        </el-popover>
         <el-dropdown>
           <span class="user">
             <el-avatar :size="30" style="background: #16845b">{{ auth.realName.slice(0, 1) }}</el-avatar>

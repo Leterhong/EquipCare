@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, reactive, ref } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
+import { useRouter } from 'vue-router';
 import { http } from '../api/http';
+import { messageRoute, msgTypeLabel } from '../composables/messageRoute';
 
 /**
  * 消息中心（Vue 第五批迁移）：全部/未读切换、单条与批量标记已读、全部已读。
@@ -18,10 +20,9 @@ interface MessageRow {
   createTime?: string;
 }
 
-const MSG_TYPE: Record<string, string> = {
-  WORK_ORDER: '工单', TASK: '巡检', SLA: 'SLA', SYSTEM: '系统', STOCK: '库存',
-};
 
+
+const router = useRouter();
 const rows = ref<MessageRow[]>([]);
 const total = ref(0);
 const unread = ref(0);
@@ -78,6 +79,18 @@ async function markAllRead() {
   load();
 }
 
+async function openMessage(row: MessageRow) {
+  const routePath = messageRoute(row.bizType, row.bizId);
+  if (row.readFlag === 0) {
+    try {
+      await http.patch('/api/system/messages/' + row.id + '/read');
+      row.readFlag = 1;
+      unread.value = Math.max(0, unread.value - 1);
+    } catch { /* 标记失败不阻塞跳转 */ }
+  }
+  if (routePath) router.push(routePath);
+}
+
 function switchTab(t: 'all' | 'unread') {
   tab.value = t;
   query.pageNum = 1;
@@ -120,14 +133,15 @@ onUnmounted(() => window.removeEventListener('ec:vue-message-new', onNewMessage)
       stripe
       :row-class-name="rowClassName"
       @selection-change="(s: MessageRow[]) => (selected = s.map((r) => r.id))"
+      @row-click="(row: MessageRow) => openMessage(row)"
     >
       <el-table-column type="selection" width="42" />
       <el-table-column label="类型" width="90">
         <template #default="{ row }">
-          <el-tag size="small" type="info">{{ MSG_TYPE[row.msgType || ''] || row.msgType || '—' }}</el-tag>
+          <el-tag size="small" type="info">{{ msgTypeLabel(row.msgType) }}</el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="标题" min-width="220">
+      <el-table-column label="标题（点击查看详情）" min-width="220">
         <template #default="{ row }">
           <b v-if="row.readFlag === 0">{{ row.title }}</b>
           <span v-else style="color: #64748b">{{ row.title }}</span>
