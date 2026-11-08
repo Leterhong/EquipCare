@@ -40,6 +40,7 @@ export const router = createRouter({
         { path: 'workbench', component: () => import('../views/WorkbenchView.vue'), meta: { title: '维修工作台', perm: 'wo:workorder:workbench' } },
         { path: 'inspect-task', component: () => import('../views/InspectTaskListView.vue'), meta: { title: '巡检任务', perm: 'inspect:task:view' } },
         { path: 'spare-part', component: () => import('../views/SparePartListView.vue'), meta: { title: '备件台账', perm: 'spare:part:view' } },
+        { path: 'spare-stock', component: () => import('../views/SpareStockView.vue'), meta: { title: '库存管理', perm: 'spare:stock:view' } },
         { path: 'workorder/:id/repair', component: () => import('../views/WorkorderRepairView.vue'), meta: { title: '维修过程记录', perm: 'wo:workorder:repair' } },
         { path: 'inspect-task/:id/execute', component: () => import('../views/InspectExecuteView.vue'), meta: { title: '执行巡检', perm: 'inspect:task:execute' } },
         { path: 'inspect-template', component: () => import('../views/InspectTemplateListView.vue'), meta: { title: '巡检模板', perm: 'inspect:template:view' } },

@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
@@ -72,6 +73,33 @@ public class TenantController {
         tenant.setStatus(1);
         tenantMapper.insert(tenant);
         return Result.ok(tenant.getId());
+    }
+
+    public record QuotaRequest(String quotaJson) {
+    }
+
+    @Operation(summary = "设置配额", description = "quotaJson 例：{\"maxEquipment\":50,\"maxStorageMb\":1024}，null=不限")
+    @PutMapping("/{id}/quota")
+    @PreAuthorize("hasRole('ADMIN')")
+    @AuditLog(module = "租户管理", action = "设置配额")
+    public Result<Void> setQuota(@PathVariable Long id, @RequestBody QuotaRequest req) {
+        SysTenant tenant = tenantMapper.selectById(id);
+        if (tenant == null) {
+            throw BizException.notFound("租户");
+        }
+        // 校验 JSON 格式
+        if (req.quotaJson() != null && !req.quotaJson().isBlank()) {
+            try {
+                new com.fasterxml.jackson.databind.ObjectMapper().readTree(req.quotaJson());
+            } catch (Exception e) {
+                throw new BizException(ResultCode.BAD_REQUEST, "quotaJson 格式非法：" + e.getMessage());
+            }
+        }
+        SysTenant patch = new SysTenant();
+        patch.setId(id);
+        patch.setQuotaJson(req.quotaJson() == null || req.quotaJson().isBlank() ? null : req.quotaJson().trim());
+        tenantMapper.updateById(patch);
+        return Result.ok();
     }
 
     @Operation(summary = "启用/停用租户", description = "停用后该租户全部用户无法登录")

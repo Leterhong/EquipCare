@@ -15,6 +15,7 @@ interface TenantRow {
   tenantName: string;
   plan: string;
   status: number;
+  quotaJson?: string;
   createdAt?: string;
 }
 
@@ -78,6 +79,40 @@ async function createTenant() {
   }
 }
 
+const quotaVisible = ref(false);
+const quotaTarget = ref<TenantRow | null>(null);
+const quotaJson = ref('');
+const quotaSaving = ref(false);
+
+function openQuota(row: TenantRow) {
+  quotaTarget.value = row;
+  quotaJson.value = row.quotaJson || '';
+  quotaVisible.value = true;
+}
+
+async function saveQuota() {
+  if (!quotaTarget.value) return;
+  // 前端 JSON 校验
+  try {
+    if (quotaJson.value.trim()) JSON.parse(quotaJson.value.trim());
+  } catch {
+    return ElMessage.warning('quotaJson 格式非法，请检查 JSON');
+  }
+  quotaSaving.value = true;
+  try {
+    await http.put(`/api/system/tenants/${quotaTarget.value.id}/quota`, {
+      quotaJson: quotaJson.value.trim() || null,
+    });
+    ElMessage.success('配额已保存');
+    quotaVisible.value = false;
+    load();
+  } catch (e) {
+    ElMessage.error((e as Error).message || '保存失败');
+  } finally {
+    quotaSaving.value = false;
+  }
+}
+
 onMounted(async () => {
   isAdmin.value = auth.user?.roles?.includes('ADMIN') || false;
   await load();
@@ -90,6 +125,7 @@ onMounted(async () => {
       <span>租户列表（多租户第三步：管理/启停；配额与注册入口为后续迭代）</span>
       <div class="spacer" />
       <el-button v-if="isAdmin" type="primary" @click="createTenant">+ 开通租户</el-button>
+      <el-button v-if="isAdmin" @click="quotaVisible = true">⚙ 配额设置</el-button>
     </div>
 
     <el-table v-loading="loading" :data="rows" stripe>
@@ -113,7 +149,16 @@ onMounted(async () => {
       <el-table-column label="开通时间" width="160">
         <template #default="{ row }">{{ (row.createdAt || '').replace('T', ' ').slice(0, 19) }}</template>
       </el-table-column>
-      <el-table-column label="操作" width="100" align="right">
+      <el-table-column label="配额" width="80" align="center">
+        <template #default="{ row }">
+          <el-tag :type="row.quotaJson ? 'warning' : 'info'" size="small">
+            {{ row.quotaJson ? '已设' : '不限' }}
+          </el-tag>
+        </template>
+      </el-table-column>
+      <el-table-column label="操作" width="140" align="right">
+        <template #default="{ row }">
+          <el-button v-if="isAdmin && row.id !== 0" link type="primary" @click="openQuota(row)">配额</el-button>
         <template #default="{ row }">
           <el-button
             v-if="isAdmin && row.id !== 0"
@@ -128,6 +173,27 @@ onMounted(async () => {
       </el-table-column>
     </el-table>
   </el-card>
+  <!-- 配额编辑弹窗 -->
+  <el-dialog v-model="quotaVisible" title="租户配额设置" width="480px">
+    <div v-if="quotaTarget" style="margin-bottom: 12px">
+      <b>{{ quotaTarget.tenantName }}</b>
+      <span class="mono" style="margin-left: 6px">({{ quotaTarget.tenantCode }})</span>
+    </div>
+    <el-form label-position="top">
+      <el-form-item label="quotaJson（JSON 格式，null = 不限）">
+        <el-input v-model="quotaJson" type="textarea" :rows="5"
+          placeholder='{"maxEquipment": 50, "maxStorageMb": 1024}' />
+      </el-form-item>
+      <p style="font-size: 12px; color: #94a3b8">
+        支持字段：maxEquipment（设备数上限）、maxStorageMb（存储 MB 上限）。
+        清空则不限。平台预置租户（id=0）不受配额约束。
+      </p>
+    </el-form>
+    <template #footer>
+      <el-button @click="quotaVisible = false">取消</el-button>
+      <el-button type="primary" :loading="quotaSaving" @click="saveQuota">保存</el-button>
+    </template>
+  </el-dialog>
 </template>
 
 <style scoped>
